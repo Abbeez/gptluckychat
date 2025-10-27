@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinese Tic Tac Toe</title>
+    <style>
+        :root {
+            --red: #b91c1c;
+            --gold: #facc15;
+            --deep: #7f1d1d;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background: url('./38130.jpg');
+            background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--deep);
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            margin: 2rem auto;
+            max-width: 960px;
+            margin-top: 50px;
+        }
+
+        button {
+            background-color: var(--red);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--deep);
+        }
+
+        /* Layout: scoreboard left, play area center */
+        .game-area {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .scoreboard {
+            width: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .play-area {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .board-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px 0;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 110px);
+            gap: 8px;
+            margin: 0 auto;
+        }
+
+        .cell {
+            width: 110px;
+            height: 110px;
+            background: white;
+            border: 2px solid var(--red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 44px;
+            cursor: pointer;
+            transition: background-color 0.18s, transform 0.12s;
+            border-radius: 8px;
+        }
+
+        /* Hover styles vary by current player */
+        .game-board.p1-turn .cell:hover {
+            background-color: rgba(185, 28, 28, 0.08);
+            transform: translateY(-4px);
+        }
+
+        .game-board.p2-turn .cell:hover {
+            background-color: rgba(250, 204, 21, 0.12);
+            transform: translateY(-4px);
+        }
+
+        .status {
+            margin: 20px 0;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        .player-score {
+            text-align: center;
+            padding: 12px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: transform 0.18s, box-shadow 0.18s;
+        }
+
+        .player-score.current {
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+            transform: translateX(6px);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                transform: translateX(4px) scale(1);
+            }
+
+            to {
+                transform: translateX(8px) scale(1.02);
+            }
+        }
+
+        .back-to-dashboard {
+            margin-top: 20px;
+        }
+
+        /* Result Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            animation: modalPop 0.3s ease-out;
+        }
+
+        @keyframes modalPop {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal h2 {
+            color: var(--red);
+            margin: 0 0 1rem;
+            font-size: 1.8rem;
+        }
+
+        .modal p {
+            font-size: 1.2rem;
+            margin: 1rem 0;
+        }
+
+        .modal button {
+            margin: 0.5rem;
+        }
+
+        @media (max-width: 400px) {
+            .game-board {
+                grid-template-columns: repeat(3, 72px);
+                gap: 6px
+            }
+
+            .cell {
+                width: 72px;
+                height: 72px;
+                font-size: 26px
+            }
+
+            .scoreboard {
+                width: 140px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 style="color: var(--red); text-align: center;">Chinese Tic Tac Toe</h1>
+
+        <div class="game-area">
+            <div class="scoreboard" id="scoreboard">
+                <div class="player-score" id="score-p1">
+                    <h3 id="p1name">Player 1</h3>
+                    <p>Current Score: <span id="p1score">0</span></p>
+                    <p>Matches Won: <span id="p1matches">0</span> / 3</p>
+                </div>
+                <div class="player-score" id="score-p2">
+                    <h3 id="p2name">Computer</h3>
+                    <p>Current Score: <span id="p2score">0</span></p>
+                    <p>Matches Won: <span id="p2matches">0</span> / 3</p>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button onclick="startNewTournament()">New Game</button>
+                    <button onclick="resetScores()">Reset Tournament</button>
+                </div>
+            </div>
+
+            <div class="play-area">
+                <div class="status" id="status"></div>
+                <div class="board-container">
+                    <div class="game-board" id="board"></div>
+                </div>
+                <div style="margin-top:8px;">
+                    <button onclick="window.location.href='index.html'" class="back-to-dashboard">Back to
+                        Dashboard</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div class="modal-overlay" id="resultModal">
+        <div class="modal">
+            <h2 id="modalTitle">Game Over!</h2>
+            <p id="modalMessage"></p>
+            <div id="modalButtons">
+                <!-- Tournament Victory buttons -->
+                <div id="tournamentButtons" style="display: none;">
+                    <button onclick="startNewTournament()">New Tournament</button>
+                    <button onclick="window.location.href='index.html'">Back to Dashboard</button>
+                </div>
+                <!-- Round Result buttons are not shown for regular rounds -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPlayer = '✕';
+        let board = ['', '', '', '', '', '', '', '', ''];
+        let gameActive = false;
+        let scores = { player1: 0, player2: 0 };
+        let matches = { player1: 0, player2: 0 };
+        let player1Name = 'Player 1';
+        let player2Name = 'Player 2';
+        const MATCHES_TO_WIN = 3;
+
+        // Get player names immediately when page loads
+        window.onload = async function () {
+            const name = prompt('Enter your name:');
+            // If user clicks cancel, return to dashboard
+            if (name === null) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // If user enters empty name or only spaces, ask again
+            player1Name = name.trim();
+            if (!player1Name) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Set computer as player 2
+            player2Name = 'Computer';
+
+            // Start the game
+            startGame();
+        };
+
+        function startGame() {
+            document.getElementById('p1name').textContent = player1Name;
+            document.getElementById('p2name').textContent = player2Name;
+            resetGame();
+            gameActive = true;
+            renderBoard();
+            updateStatus();
+            updateScores();
+        }
+
+        function renderBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            // Set board class according to current player for hover styles
+            boardElement.classList.toggle('p1-turn', currentPlayer === '✕');
+            boardElement.classList.toggle('p2-turn', currentPlayer === '○');
+
+            board.forEach((cell, index) => {
+                const cellElement = document.createElement('div');
+                cellElement.className = 'cell';
+                cellElement.textContent = cell;
+                cellElement.addEventListener('click', () => handleCellClick(index));
+                boardElement.appendChild(cellElement);
+            });
+        }
+
+        function getComputerMove() {
+            // First try to win
+            const move = findWinningMove('○');
+            if (move !== -1) return move;
+
+            // Then try to block player from winning
+            const blockMove = findWinningMove('✕');
+            if (blockMove !== -1) return blockMove;
+
+            // Try to take center
+            if (board[4] === '') return 4;
+
+            // Try to take corners
+            const corners = [0, 2, 6, 8];
+            const emptyCorners = corners.filter(i => board[i] === '');
+            if (emptyCorners.length > 0) {
+                return emptyCorners[Math.floor(Math.random() * emptyCorners.length)];
+            }
+
+            // Take any available space
+            const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(i => i !== null);
+            return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        }
+
+        function findWinningMove(player) {
+            for (let i = 0; i < 9; i++) {
+                if (board[i] === '') {
+                    board[i] = player;
+                    if (checkWin()) {
+                        board[i] = '';
+                        return i;
+                    }
+                    board[i] = '';
+                }
+            }
+            return -1;
+        }
+
+        function handleCellClick(index) {
+            if (!gameActive || board[index] !== '' || currentPlayer !== '✕') return;
+
+            // Player's move
+            board[index] = currentPlayer;
+            renderBoard();
+
+            if (checkWin()) {
+                const winner = currentPlayer === '✕' ? player1Name : player2Name;
+                if (currentPlayer === '✕') {
+                    scores.player1++;
+                    if (scores.player1 > scores.player2) {
+                        matches.player1++;
+                        if (matches.player1 >= MATCHES_TO_WIN) {
+                            showResult(`${player1Name} wins the tournament! Score: ${matches.player1}-${matches.player2}`, 'Tournament Victory!', true);
+                            gameActive = false;
+                            return;
+                        }
+                    }
+                } else {
+                    scores.player2++;
+                    if (scores.player2 > scores.player1) {
+                        matches.player2++;
+                        if (matches.player2 >= MATCHES_TO_WIN) {
+                            showResult(`${player2Name} wins the tournament! Score: ${matches.player2}-${matches.player1}`, 'Tournament Victory!', true);
+                            gameActive = false;
+                            return;
+                        }
+                    }
+                }
+                updateScores();
+                showResult(winner + ' wins this round!', 'Round Victory!');
+                gameActive = false;
+                setTimeout(() => {
+                    closeModal(true); // Auto-start next round
+                }, 1500);
+            } else if (board.every(cell => cell !== '')) {
+                showResult("It's a draw!", 'Draw Game');
+                gameActive = false;
+                setTimeout(() => {
+                    closeModal(true); // Auto-reset on draw after showing result
+                }, 1500);
+            } else if (board.every(cell => cell !== '')) {
+                showResult("It's a draw!", 'Draw Game');
+                gameActive = false;
+                setTimeout(() => {
+                    closeModal(true);
+                }, 1500);
+            } else {
+                // Computer's turn
+                currentPlayer = '○';
+                updateStatus();
+                // Add a small delay before computer moves
+                setTimeout(() => {
+                    if (gameActive) {
+                        const computerMove = getComputerMove();
+                        board[computerMove] = '○';
+                        renderBoard();
+
+                        if (checkWin()) {
+                            scores.player2++;
+                            if (scores.player2 > scores.player1) {
+                                matches.player2++;
+                                if (matches.player2 >= MATCHES_TO_WIN) {
+                                    showResult(`Computer wins the tournament! Score: ${matches.player2}-${matches.player1}`, 'Tournament Victory!', true);
+                                    gameActive = false;
+                                    return;
+                                }
+                            }
+                            updateScores();
+                            showResult('Computer wins this round!', 'Round Victory!');
+                            gameActive = false;
+                            setTimeout(() => {
+                                closeModal(true);
+                            }, 1500);
+                        } else if (board.every(cell => cell !== '')) {
+                            showResult("It's a draw!", 'Draw Game');
+                            gameActive = false;
+                            setTimeout(() => {
+                                closeModal(true);
+                            }, 1500);
+                        } else {
+                            currentPlayer = '✕';
+                            updateStatus();
+                        }
+                    }
+                }, 800);
+            }
+        }
+
+        function checkWin() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6] // Diagonals
+            ];
+
+            return winPatterns.some(pattern => {
+                const [a, b, c] = pattern;
+                return board[a] && board[a] === board[b] && board[a] === board[c];
+            });
+        }
+
+        function updateStatus() {
+            const currentPlayerName = currentPlayer === '✕' ? player1Name : player2Name;
+            document.getElementById('status').textContent = `${currentPlayerName}'s turn`;
+            // update hover classes on board and scoreboard highlight
+            const boardElement = document.getElementById('board');
+            boardElement.classList.toggle('p1-turn', currentPlayer === '✕');
+            boardElement.classList.toggle('p2-turn', currentPlayer === '○');
+            document.getElementById('score-p1').classList.toggle('current', currentPlayer === '✕');
+            document.getElementById('score-p2').classList.toggle('current', currentPlayer === '○');
+        }
+
+        function updateScores() {
+            document.getElementById('p1score').textContent = scores.player1;
+            document.getElementById('p2score').textContent = scores.player2;
+            document.getElementById('p1matches').textContent = matches.player1;
+            document.getElementById('p2matches').textContent = matches.player2;
+        }
+
+        function showResult(message, title, isTournamentEnd = false) {
+            const modal = document.getElementById('resultModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const tournamentButtons = document.getElementById('tournamentButtons');
+
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+
+            // Show buttons only when tournament ends
+            tournamentButtons.style.display = isTournamentEnd ? 'block' : 'none';
+
+            modal.style.display = 'flex';
+
+            // Auto-close for non-tournament-end results
+            if (!isTournamentEnd) {
+                setTimeout(() => {
+                    closeModal();
+                }, 1500);
+            }
+        } function closeModal() {
+            const modal = document.getElementById('resultModal');
+            modal.style.display = 'none';
+            resetGame();
+        }
+
+        function startNewTournament() {
+            // Ask for new player name
+            const newName = prompt('Enter your name:');
+
+            // If user clicks cancel, return to dashboard
+            if (newName === null) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // If user enters empty name or only spaces, return to dashboard
+            if (!newName.trim()) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            player1Name = newName.trim();
+            scores.player1 = 0;
+            scores.player2 = 0;
+            matches.player1 = 0;
+            matches.player2 = 0;
+
+            // Close modal and start fresh
+            const modal = document.getElementById('resultModal');
+            modal.style.display = 'none';
+            startGame();
+        } function resetGame() {
+            board = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = '✕';
+            gameActive = true;
+            renderBoard();
+            updateStatus();
+        }
+
+        function resetScores() {
+            scores.player1 = 0;
+            scores.player2 = 0;
+            matches.player1 = 0;
+            matches.player2 = 0;
+            updateScores();
+            showResult('Tournament progress has been reset!', 'Tournament Reset', false);
+            setTimeout(() => {
+                closeModal();
+            }, 1500);
+        }
+
+        // Initialize the game board
+        renderBoard();
+    </script>
+</body>
+
+</html>
