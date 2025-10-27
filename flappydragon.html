@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Flappy Dragon China Edition</title>
+    <style>
+      :root {
+        --red: #b91c1c;
+        --gold: #facc15;
+        --ink: #222;
+        --sidebar: 360px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+        color: #111;
+        background: linear-gradient(#fff7ed 0%, #fff 100%);
+        overflow: hidden;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) var(--sidebar);
+        height: 100vh;
+        width: 100vw;
+      }
+
+      /* Play area */
+      .stage {
+        position: relative;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Sidebar */
+      .side {
+        height: 100vh;
+        background: #ffffff;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border-left: 3px solid var(--red);
+        box-shadow: -12px 0 36px rgba(0, 0, 0, 0.08);
+      }
+      .brand {
+        font-weight: 900;
+        color: var(--red);
+      }
+      .chip {
+        background: #fff7ed;
+        color: var(--red);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-weight: 800;
+        display: inline-block;
+      }
+      .goalwrap {
+        height: 12px;
+        background: #fde68a;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .goalfill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #f59e0b, #fbbf24, var(--gold));
+      }
+      .btn {
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-weight: 900;
+        background: var(--red);
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(185, 28, 28, 0.35);
+      }
+      .btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 12px;
+      }
+
+      .records {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .records h2 {
+        margin: 0;
+        color: var(--red);
+      }
+      .rec-body {
+        flex: 1;
+        overflow: auto;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid #f1f5f9;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #f1f5f9;
+        text-align: left;
+        font-size: 14px;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: #fff7ed;
+        color: var(--red);
+      }
+
+      /* HUD over canvas */
+      .hud {
+        position: absolute;
+        top: 12px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .score {
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: saturate(1.1) blur(2px);
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-weight: 900;
+        color: var(--red);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+      }
+      .tap {
+        position: absolute;
+        left: 50%;
+        bottom: 18vh;
+        transform: translateX(-50%);
+        color: #991b1b;
+        font-weight: 800;
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 999px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        z-index: 9;
+      }
+
+      /* Overlay */
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.92);
+        z-index: 20;
+        text-align: center;
+        padding: 16px;
+      }
+      .card {
+        width: min(720px, 94%);
+        background: #fff;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+      }
+      .card h1 {
+        margin: 0 0 6px;
+        color: var(--red);
+        font-size: clamp(28px, 5vw, 48px);
+      }
+      .card p {
+        margin: 6px 0;
+        color: #374151;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .input {
+        padding: 12px 14px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        min-width: 260px;
+        font-weight: 700;
+      }
+
+      @media (max-width: 1000px) {
+        :root {
+          --sidebar: 300px;
+        }
+      }
+      @media (max-width: 820px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          position: absolute;
+          right: 0;
+          top: 0;
+          height: 100vh;
+          width: 88vw;
+          transform: translateX(100%);
+          transition: transform 0.2s ease;
+          z-index: 30;
+        }
+        .side.open {
+          transform: translateX(0);
+        }
+        .side-toggle {
+          position: absolute;
+          right: 10px;
+          top: 10px;
+          z-index: 40;
+          background: var(--red);
+          color: #fff;
+          border: 0;
+          border-radius: 10px;
+          padding: 8px 12px;
+          font-weight: 900;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+        }
+      }
+
+      .sr-only {
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <!-- Column 1: Play -->
+      <section class="stage" id="stage" aria-label="Flappy Dragon game area">
+        <div class="hud">
+          <div class="score">Score: <span id="score">0</span></div>
+        </div>
+        <div id="tapHint" class="tap" style="display: none">Tap to fly</div>
+
+        <div id="overlay" class="overlay" role="dialog" aria-labelledby="title">
+          <div class="card">
+            <h1 id="title">Welcome Dragon Rider</h1>
+            <p>
+              Fly the dragon between the temple towers and avoid collisions.
+            </p>
+            <p>Each gate passed adds one point. Reach the goal to celebrate.</p>
+            <p><strong>Goal:</strong> <span id="goalIntro">20</span> points.</p>
+            <div class="row">
+              <input
+                id="playerName"
+                class="input"
+                placeholder="Name of the player"
+                required
+              />
+              <button id="startBtn" class="btn" disabled>Start</button>
+            </div>
+            <p class="muted">Music starts after you press Start or tap</p>
+          </div>
+        </div>
+
+        <canvas id="game"></canvas>
+        <button class="side-toggle" id="sideToggle" style="display: none">
+          Records
+        </button>
+      </section>
+
+      <!-- Column 2: Sidebar -->
+      <aside class="side" id="side" aria-label="Records sidebar">
+        <div class="brand">Flappy Dragon</div>
+        <div>
+          <span class="chip">Goal: <span id="goal">20</span></span>
+        </div>
+        <div class="goalwrap" aria-hidden="true">
+          <div id="goalFill" class="goalfill"></div>
+        </div>
+
+        <div class="records">
+          <h2>Records</h2>
+          <div class="rec-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Score</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody id="recRows">
+                <tr>
+                  <td colspan="4" class="muted">No records yet</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button id="refreshBtn" class="btn" style="background: #6b7280">
+              Refresh
+            </button>
+            <button id="clearBtn" class="btn" style="background: #991b1b">
+              Clear
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      (() => {
+        // Config
+        const GOAL_POINTS = 20;
+        const GRAVITY = 1650;
+        const FLAP = -450;
+        const SCROLL = 240;
+        const OB_SPEED = 300;
+        const GAP_MIN = 130;
+        const GAP_MAX = 190;
+        const OB_INTERVAL = 1150;
+        const DRAGON_SIZE = 44;
+        const MUSIC_BPM = 108;
+
+        // Hitbox trims (fix visual vs collision mismatch)
+        let DPR = 1; // updated on size
+        const HITBOX = () => ({
+          insetX: 10 * DPR, // shrink temple hitbox horizontally
+          trimTop: 14 * DPR, // trim roof overhang
+          trimBottom: 14 * DPR, // trim base overhang
+        });
+
+        // Elements
+        const stage = document.getElementById("stage");
+        const canvas = document.getElementById("game");
+        const overlay = document.getElementById("overlay");
+        let startBtn = document.getElementById("startBtn");
+        let nameInput = document.getElementById("playerName");
+        const tapHint = document.getElementById("tapHint");
+        const side = document.getElementById("side");
+        const sideToggle = document.getElementById("sideToggle");
+
+        const scoreEl = document.getElementById("score");
+        const goalEl = document.getElementById("goal");
+        const goalIntroEl = document.getElementById("goalIntro");
+        const goalFill = document.getElementById("goalFill");
+        const recRows = document.getElementById("recRows");
+        const refreshBtn = document.getElementById("refreshBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        goalEl.textContent = GOAL_POINTS;
+        goalIntroEl.textContent = GOAL_POINTS;
+
+        // Canvas sizing
+        const ctx = canvas.getContext("2d");
+        let W = 0,
+          H = 0;
+        function sizeCanvasToStage() {
+          DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+          const rect = stage.getBoundingClientRect();
+          W = canvas.width = Math.floor(rect.width * DPR);
+          H = canvas.height = Math.floor(rect.height * DPR);
+          canvas.style.width = rect.width + "px";
+          canvas.style.height = rect.height + "px";
+        }
+        new ResizeObserver(sizeCanvasToStage).observe(stage);
+        window.addEventListener("resize", sizeCanvasToStage, { passive: true });
+        sizeCanvasToStage();
+
+        // Sidebar mobile toggle
+        function updateSidebarMode() {
+          const isMobile = window.matchMedia("(max-width: 820px)").matches;
+          sideToggle.style.display = isMobile ? "block" : "none";
+          if (!isMobile) side.classList.remove("open");
+        }
+        updateSidebarMode();
+        window.addEventListener("resize", updateSidebarMode);
+        sideToggle.onclick = () => side.classList.toggle("open");
+
+        // Game state
+        let running = false,
+          gameOver = false,
+          win = false;
+        let score = 0,
+          playerName = "";
+        let dragon = { x: W * 0.28, y: H * 0.5, vy: 0, r: DRAGON_SIZE * DPR };
+        let last = 0,
+          spawnCarry = 0,
+          obstacles = [];
+        let bgOffset = 0;
+
+        // Assets
+        const dragonImg = new Image();
+        dragonImg.src = "img/dragon.gif";
+        const templeImg = new Image();
+        templeImg.src = "img/temple.png";
+
+        // Audio
+        let audio = null,
+          master = null,
+          musicTimer = null;
+        function ensureAudio() {
+          if (audio) return;
+          audio = new (window.AudioContext || window.webkitAudioContext)();
+          master = audio.createGain();
+          master.gain.value = 0.7;
+          master.connect(audio.destination);
+        }
+        function sfxFlap() {
+          ensureAudio();
+          const o = audio.createOscillator(),
+            g = audio.createGain();
+          o.type = "triangle";
+          o.frequency.value = 620;
+          o.connect(g);
+          g.connect(master);
+          const t = audio.currentTime;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.18, t + 0.03);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+          o.start(t);
+          o.stop(t + 0.16);
+        }
+        function startMusic() {
+          ensureAudio();
+          stopMusic();
+          const step = 60 / MUSIC_BPM;
+          const scale = [261.63, 293.66, 329.63, 392.0, 523.25];
+          let i = 0;
+          musicTimer = setInterval(() => {
+            note(98.0, 0.2, "sine", 0.06);
+            const f = scale[(i * 3) % scale.length];
+            note(f, 0.16, "triangle", 0.1);
+            if (i % 8 === 4)
+              note(scale[(i * 3 + 1) % scale.length] * 1.5, 0.12, "sine", 0.06);
+            i++;
+          }, step * 1000);
+          function note(freq, dur, type = "sine", vol = 0.1) {
+            const o = audio.createOscillator(),
+              g = audio.createGain();
+            o.type = type;
+            o.frequency.value = freq;
+            o.connect(g);
+            g.connect(master);
+            const t = audio.currentTime;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(
+              0.0001,
+              t + Math.max(0.12, dur)
+            );
+            o.start(t);
+            o.stop(t + Math.max(0.14, dur));
+          }
+        }
+        function stopMusic() {
+          if (musicTimer) {
+            clearInterval(musicTimer);
+            musicTimer = null;
+          }
+        }
+
+        // Confetti
+        function confettiBurst() {
+          const colors = [
+            "#ef4444",
+            "#f59e0b",
+            "#facc15",
+            "#22c55e",
+            "#3b82f6",
+            "#a855f7",
+          ];
+          const N = 140,
+            bits = [];
+          for (let i = 0; i < N; i++) {
+            const d = document.createElement("div");
+            d.style.position = "fixed";
+            d.style.left = Math.random() * 100 + "vw";
+            d.style.top = "-2vh";
+            d.style.width = "10px";
+            d.style.height = "14px";
+            d.style.background =
+              colors[Math.floor(Math.random() * colors.length)];
+            d.style.opacity = "0.95";
+            d.style.zIndex = "50";
+            d.style.pointerEvents = "none";
+            document.body.appendChild(d);
+            bits.push({
+              el: d,
+              x: parseFloat(d.style.left),
+              y: -2,
+              vy: 38 + Math.random() * 58,
+              vx: -22 + Math.random() * 44,
+              rot: -200 + Math.random() * 400,
+              t0: performance.now(),
+            });
+          }
+          const raf = (t) => {
+            let alive = false;
+            bits.forEach((b) => {
+              const dt = (t - b.t0) / 1000,
+                y = b.y + b.vy * dt,
+                x = b.x + (b.vx * dt) / 10;
+              b.el.style.transform = `translate(${x}vw, ${y}vh) rotate(${
+                b.rot * dt
+              }deg)`;
+              if (y < 110) alive = true;
+              else {
+                b.el.remove();
+                b.dead = true;
+              }
+            });
+            if (alive) requestAnimationFrame(raf);
+          };
+          requestAnimationFrame(raf);
+        }
+
+        // Obstacles
+        function spawnObstacle() {
+          const gap = rand(GAP_MIN, GAP_MAX) * DPR;
+          const topH = rand(H * 0.18, H * 0.7 - gap);
+          const x = W + 40 * DPR;
+          const width = 100 * DPR; // visual width
+          obstacles.push({ x, w: width, gapY: topH, gapH: gap, passed: false });
+        }
+
+        // Helpers
+        const rand = (a, b) => a + Math.random() * (b - a);
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+        // Records
+        const KEY = "fd_leaderboard";
+        function readBoard() {
+          try {
+            return JSON.parse(localStorage.getItem(KEY) || "[]");
+          } catch {
+            return [];
+          }
+        }
+        function saveScore(name, pts) {
+          const now = new Date().toISOString().replace("T", " ").slice(0, 16);
+          const data = readBoard();
+          data.push({ name, pts, date: now });
+          data.sort((a, b) => b.pts - a.pts);
+          localStorage.setItem(KEY, JSON.stringify(data.slice(0, 20)));
+        }
+        function renderBoard() {
+          const data = readBoard();
+          if (!data.length) {
+            recRows.innerHTML =
+              '<tr><td colspan="4" class="muted">No records yet</td></tr>';
+            return;
+          }
+          recRows.innerHTML = data
+            .map(
+              (r, i) =>
+                `<tr><td>${i + 1}</td><td>${r.name}</td><td>${
+                  r.pts
+                }</td><td class="muted">${r.date}</td></tr>`
+            )
+            .join("");
+        }
+        document.getElementById("refreshBtn").onclick = renderBoard;
+        document.getElementById("clearBtn").onclick = () => {
+          localStorage.removeItem(KEY);
+          renderBoard();
+        };
+
+        // Core
+        function reset() {
+          score = 0;
+          gameOver = false;
+          win = false;
+          dragon.x = W * 0.28;
+          dragon.y = H * 0.5;
+          dragon.vy = 0;
+          dragon.r = DRAGON_SIZE * DPR;
+          obstacles.length = 0;
+          spawnCarry = 0;
+          last = performance.now();
+          goalFill.style.width = "0%";
+          scoreEl.textContent = "0";
+          tapHint.style.display = "block";
+        }
+        function updateGoalProgress() {
+          const pct = Math.min(100, (score / GOAL_POINTS) * 100);
+          goalFill.style.width = pct + "%";
+        }
+        function startGame() {
+          const val = (nameInput.value || "").trim();
+          if (!val) {
+            nameInput.focus();
+            return;
+          }
+          playerName = val.slice(0, 24);
+          overlay.style.display = "none";
+          ensureAudio();
+          startMusic();
+          reset();
+          running = true;
+          requestAnimationFrame(loop);
+        }
+
+        // Background
+        function drawBackground(dt) {
+          // Sky
+          ctx.fillStyle = "#fff7ed";
+          ctx.fillRect(0, 0, W, H);
+
+          // Mountains parallax
+          bgOffset = (bgOffset + SCROLL * 0.3 * dt) % W;
+          const layers = [
+            { y: H * 0.72, color: "#fde68a", speed: 0.25 },
+            { y: H * 0.78, color: "#fecdd3", speed: 0.35 },
+            { y: H * 0.82, color: "#fca5a5", speed: 0.45 },
+          ];
+          layers.forEach((L) => {
+            const off = (bgOffset * L.speed) % W;
+            ctx.fillStyle = L.color;
+            for (let x = -off; x < W + 500 * DPR; x += 300 * DPR) {
+              ctx.beginPath();
+              ctx.moveTo(x, L.y);
+              ctx.lineTo(x + 120 * DPR, L.y - 80 * DPR);
+              ctx.lineTo(x + 240 * DPR, L.y);
+              ctx.lineTo(x + 360 * DPR, L.y - 70 * DPR);
+              ctx.lineTo(x + 480 * DPR, L.y);
+              ctx.lineTo(x + 600 * DPR, L.y - 65 * DPR);
+              ctx.lineTo(x + 720 * DPR, L.y);
+              ctx.closePath();
+              ctx.fill();
+            }
+          });
+
+          // Great Wall strip
+          ctx.fillStyle = "#f87171";
+          ctx.fillRect(0, H * 0.86, W, H * 0.16);
+          ctx.fillStyle = "#ef4444";
+          const step = 38 * DPR;
+          for (let x = 0; x < W; x += step) {
+            ctx.fillRect(x, H * 0.84, 22 * DPR, 16 * DPR);
+          }
+        }
+
+        // Draw temples
+        function drawObstacle(ob) {
+          const x = ob.x,
+            w = ob.w;
+          const topH = ob.gapY;
+          const bottomY = ob.gapY + ob.gapH;
+          const bottomH = H - bottomY;
+
+          if (templeImg.complete && templeImg.naturalWidth > 0) {
+            if (topH > 0) {
+              ctx.save();
+              ctx.translate(x, topH);
+              ctx.scale(1, -1);
+              ctx.drawImage(templeImg, 0, 0, w, topH);
+              ctx.restore();
+            }
+            if (bottomH > 0) {
+              ctx.drawImage(templeImg, x, bottomY, w, bottomH);
+            }
+          } else {
+            ctx.fillStyle = "#7c2d12";
+            ctx.fillRect(x, 0, w, topH);
+            ctx.fillRect(x, bottomY, w, bottomH);
+          }
+        }
+
+        // Dragon
+        function drawDragon() {
+          const x = dragon.x,
+            y = dragon.y,
+            r = dragon.r;
+          const tilt = clamp(dragon.vy / 600, -0.4, 0.4);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(tilt);
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(250,204,21,0.10)";
+          ctx.fill();
+          const size = r * 2.2;
+          if (dragonImg.complete) {
+            ctx.drawImage(dragonImg, -size / 2, -size / 2, size, size);
+          } else {
+            ctx.font = `${Math.floor(r * 1.3)}px serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🐉", 0, 0);
+          }
+          ctx.restore();
+        }
+
+        // Accurate collision using trimmed hitboxes
+        function collides(ob) {
+          const hb = HITBOX();
+          const effX = ob.x + hb.insetX;
+          const effW = Math.max(0, ob.w - hb.insetX * 2);
+
+          const topY = 0;
+          const topH = Math.max(0, ob.gapY - hb.trimTop);
+
+          const bottomY = Math.min(H, ob.gapY + ob.gapH + hb.trimBottom);
+          const bottomH = Math.max(0, H - bottomY);
+
+          const d = dragon;
+          const left = effX,
+            right = effX + effW;
+
+          // If dragon horizontally overlapping the temple column
+          const overlapX = d.x + d.r * 0.55 > left && d.x - d.r * 0.55 < right;
+          if (!overlapX) return false;
+
+          // Check if dragon circle is within the safe gap; if not, it's a hit
+          const inTop = d.y - d.r * 0.7 < topY + topH;
+          const inBottom = d.y + d.r * 0.7 > bottomY;
+          if (inTop || inBottom) return true;
+
+          // Floor / ceiling
+          if (d.y + d.r > H || d.y - d.r < 0) return true;
+
+          return false;
+        }
+
+        // Pass check must match effective hitbox too
+        function passedColumn(ob) {
+          const hb = HITBOX();
+          const effX = ob.x + hb.insetX;
+          const effW = Math.max(0, ob.w - hb.insetX * 2);
+          return effX + effW < dragon.x - dragon.r;
+        }
+
+        function flap() {
+          if (!running || gameOver || win) return;
+          dragon.vy = FLAP;
+          sfxFlap();
+        }
+
+        // Name required
+        function wireNameRequirement() {
+          const check = () => {
+            startBtn.disabled = !((nameInput.value || "").trim().length > 0);
+          };
+          nameInput.addEventListener("input", check);
+          check();
+        }
+
+        // Overlays and save
+        function showGameOver() {
+          gameOver = true;
+          stopMusic();
+          saveScore(playerName || "Player", score);
+          renderBoard();
+          overlay.style.display = "grid";
+          overlay.querySelector(".card").innerHTML = `
+      <h1>Game Over</h1>
+      <p>Score: <strong>${score}</strong></p>
+      <div class="row">
+        <input id="playerName" class="input" placeholder="Name of the player" required />
+        <button id="startBtn" class="btn" disabled>Start</button>
+      </div>`;
+          nameInput = document.getElementById("playerName");
+          startBtn = document.getElementById("startBtn");
+          wireNameRequirement();
+          startBtn.onclick = startGame;
+          nameInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !startBtn.disabled) startBtn.click();
+          });
+          nameInput.focus();
+        }
+        function showWin() {
+          win = true;
+          stopMusic();
+          confettiBurst();
+          saveScore(playerName || "Player", score);
+          renderBoard();
+          overlay.style.display = "grid";
+          overlay.querySelector(".card").innerHTML = `
+      <h1>Great job</h1>
+      <p>You reached the goal. Score: <strong>${score}</strong></p>
+      <div class="row">
+        <input id="playerName" class="input" placeholder="Name of the player" required />
+        <button id="startBtn" class="btn" disabled>Play again</button>
+      </div>`;
+          nameInput = document.getElementById("playerName");
+          startBtn = document.getElementById("startBtn");
+          wireNameRequirement();
+          startBtn.onclick = startGame;
+          nameInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !startBtn.disabled) startBtn.click();
+          });
+          nameInput.focus();
+        }
+
+        function loop(ts) {
+          if (!running) return;
+          const dt = Math.min((ts - last) / 1000, 0.033);
+          last = ts;
+
+          // spawn
+          spawnCarry += dt * 1000;
+          if (spawnCarry > OB_INTERVAL) {
+            spawnCarry = 0;
+            spawnObstacle();
+          }
+
+          // move obstacles
+          for (let i = obstacles.length - 1; i >= 0; i--) {
+            const ob = obstacles[i];
+            ob.x -= OB_SPEED * DPR * dt;
+
+            if (!ob.passed && passedColumn(ob)) {
+              ob.passed = true;
+              score++;
+              scoreEl.textContent = String(score);
+              updateGoalProgress();
+              if (score >= GOAL_POINTS) {
+                showWin();
+                return;
+              }
+            }
+            if (ob.x + ob.w < -40 * DPR) obstacles.splice(i, 1);
+          }
+
+          // physics
+          dragon.vy += GRAVITY * dt;
+          dragon.y += dragon.vy * dt;
+
+          // collisions
+          for (const ob of obstacles) {
+            if (collides(ob)) {
+              showGameOver();
+              return;
+            }
+          }
+          if (dragon.y + dragon.r > H || dragon.y - dragon.r < 0) {
+            showGameOver();
+            return;
+          }
+
+          // draw
+          drawBackground(dt);
+          obstacles.forEach(drawObstacle);
+          drawDragon();
+
+          tapHint.style.display =
+            score === 0 && !gameOver && !win ? "block" : "none";
+
+          requestAnimationFrame(loop);
+        }
+
+        // Input
+        function startIfNeeded() {
+          if (!running) {
+            if (!startBtn.disabled) startGame();
+          }
+        }
+        window.addEventListener("keydown", (e) => {
+          if (e.code === "Space" || e.code === "ArrowUp") {
+            e.preventDefault();
+            startIfNeeded();
+            flap();
+          }
+          if ((e.code === "KeyR" || e.code === "Enter") && (gameOver || win)) {
+            const n = document.getElementById("playerName");
+            if (n) n.focus();
+          }
+        });
+        window.addEventListener("pointerdown", () => {
+          startIfNeeded();
+          flap();
+        });
+
+        // Initial
+        wireNameRequirement();
+        startBtn.onclick = startGame;
+        nameInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !startBtn.disabled) startBtn.click();
+        });
+        renderBoard();
+      })();
+    </script>
+  </body>
+</html>
