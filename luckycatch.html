@@ -1,746 +1,805 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Lucky Catch</title>
     <style>
-      :root {
-        --red: #b91c1c;
-        --deep: #7f1d1d;
-        --gold: #facc15;
-        --gold-deep: #b45309;
-        --good: #065f46;
-        --bad: #991b1b;
-        --scale: 1.15;
-        --sidebar-w: 360px;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
-          sans-serif;
-        color: var(--deep);
-        background: radial-gradient(
-            800px 420px at 20% -10%,
-            rgba(248, 113, 113, 0.14) 0%,
-            transparent 70%
-          ),
-          radial-gradient(
-            700px 420px at 80% 110%,
-            rgba(250, 204, 21, 0.14) 0%,
-            transparent 70%
-          ),
-          linear-gradient(180deg, #fff 0%, #fff8f0 80%);
-        overflow: hidden;
-      }
-
-      .layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) var(--sidebar-w);
-        height: 100vh;
-        width: 100vw;
-      }
-
-      /* Play area */
-      .stage {
-        position: relative;
-        height: 100%;
-        background: linear-gradient(180deg, #ffffff 0%, #fffdf9 70%);
-        touch-action: none;
-        user-select: none;
-        overflow: hidden;
-      }
-
-      /* Overlay */
-      .overlay {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        background: rgba(255, 255, 255, 0.92);
-        text-align: center;
-        padding: 24px;
-        backdrop-filter: saturate(1.02) blur(2px);
-        z-index: 50;
-      }
-      .card {
-        background: #fff;
-        padding: 22px;
-        border-radius: 14px;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-        width: min(700px, 92vw);
-        position: relative;
-        z-index: 60;
-      }
-      .overlay h1 {
-        font-size: clamp(28px, 4.6vw, 52px);
-        margin: 0 0 8px;
-        color: var(--red);
-      }
-      .overlay p {
-        margin: 8px 0;
-        color: var(--deep);
-        font-size: calc(16px * var(--scale));
-      }
-      .row {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-top: 12px;
-      }
-      .btn {
-        display: inline-block;
-        background: var(--red);
-        color: #fff;
-        border: none;
-        border-radius: 12px;
-        padding: calc(10px * var(--scale)) calc(18px * var(--scale));
-        font-weight: 900;
-        cursor: pointer;
-        transition: transform 0.06s ease;
-        font-size: calc(16px * var(--scale));
-      }
-      .btn:active {
-        transform: translateY(1px);
-      }
-      .input {
-        padding: calc(10px * var(--scale)) calc(12px * var(--scale));
-        border: 2px solid #e5e7eb;
-        border-radius: 10px;
-        min-width: 260px;
-        font-weight: 700;
-        color: #1f2937;
-        font-size: calc(16px * var(--scale));
-      }
-
-      /* Visually hidden utility for accessible headings in the sidebar */
-      .sr-only {
-        position: absolute !important;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-      }
-
-      /* Basket and items */
-      .basket {
-        position: absolute;
-        bottom: calc(18px * var(--scale));
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(118px * var(--scale));
-        height: calc(58px * var(--scale)); /* widened for ease */
-        background: conic-gradient(from 0deg, #f59e0b, #fbbf24, #f59e0b);
-        border: 0;
-        border-radius: 14px 14px 22px 22px/14px 14px 24px 24px;
-        box-shadow: 0 6px 0 #78350f inset, 0 6px 12px rgba(0, 0, 0, 0.1);
-      }
-      .fall {
-        position: absolute;
-        top: -70px;
-        width: calc(56px * var(--scale));
-        height: calc(64px * var(--scale));
-        display: grid;
-        place-items: center;
-        font-size: calc(36px * var(--scale));
-        line-height: 1;
-        filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.2));
-      }
-      .fall.coin {
-        width: calc(54px * var(--scale));
-        height: calc(54px * var(--scale));
-        border-radius: 50%;
-        background: var(--gold);
-        border: 3px solid var(--gold-deep);
-        font-size: calc(30px * var(--scale));
-      }
-      .fall.bad {
-        width: calc(50px * var(--scale));
-        height: calc(72px * var(--scale));
-        font-size: calc(38px * var(--scale));
-      }
-
-      .score-pop {
-        position: absolute;
-        font-weight: 900;
-        color: var(--good);
-        animation: pop 0.6s ease-out forwards;
-        pointer-events: none;
-        font-size: calc(18px * var(--scale));
-      }
-      @keyframes pop {
-        0% {
-          opacity: 0;
-          transform: translateY(4px) scale(0.9);
-        }
-        30% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0;
-          transform: translateY(-16px) scale(1);
-        }
-      }
-
-      /* Right column */
-      .side {
-        height: 100vh;
-        background: linear-gradient(180deg, #fffaf3 0%, #ffffff 50%);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        padding: 16px;
-        z-index: 10;
-        box-shadow: -10px 0 24px rgba(0, 0, 0, 0.06);
-        border-left: 3px solid var(--red); /* left border */
-      }
-      .brand {
-        font-weight: 900;
-        color: var(--red);
-        letter-spacing: 0.3px;
-        margin-bottom: 6px;
-      }
-      .chips {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      .chip {
-        background: #fff;
-        border: 0;
-        border-radius: 999px;
-        padding: 10px 14px;
-        font-weight: 800;
-        color: var(--red);
-        font-size: 15px;
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
-      }
-
-      .progress-block {
-        display: grid;
-        gap: 8px;
-      }
-      .goal-label {
-        font-weight: 800;
-        color: var(--deep);
-        font-size: 14px;
-      }
-      .goalbar {
-        height: 12px;
-        background: #fde68a;
-        border-radius: 999px;
-        overflow: hidden;
-      }
-      .goalbar > .fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(
-          90deg,
-          #f59e0b 0%,
-          #fbbf24 50%,
-          var(--gold) 100%
-        );
-        transition: width 0.18s ease;
-      }
-
-      .records {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .rec-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .rec-title {
-        font-weight: 800;
-        color: var(--red);
-        margin: 0;
-      }
-      .icon-btn {
-        background: #fff;
-        border: 2px solid var(--red);
-        color: var(--red);
-        padding: 6px 10px;
-        border-radius: 10px;
-        font-weight: 800;
-        cursor: pointer;
-      }
-      .rec-body {
-        flex: 1;
-        overflow: auto;
-        border-radius: 10px;
-        background: #fff;
-      }
-      .rec-table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .rec-table th,
-      .rec-table td {
-        padding: 8px 10px;
-        border-bottom: 1px solid #f1f5f9;
-        text-align: left;
-        font-size: 14px;
-      }
-      .rec-table th {
-        color: var(--red);
-        background: #fff7ed;
-        position: sticky;
-        top: 0;
-      }
-      .muted {
-        color: #6b7280;
-        font-size: 12px;
-        padding: 10px;
-      }
-
-      @media (max-width: 980px) {
         :root {
-          --sidebar-w: 0px;
+            --red: #b91c1c;
+            --deep: #7f1d1d;
+            --gold: #facc15;
+            --gold-deep: #b45309;
+            --good: #065f46;
+            --bad: #991b1b;
+            --scale: 1.15;
+            --sidebar-w: 360px;
         }
-        .layout {
-          grid-template-columns: 1fr;
-        }
-        .side {
-          position: fixed;
-          top: 0;
-          right: 0;
-          height: 100vh;
-          width: 88vw;
-          transform: translateX(100%);
-          transition: transform 0.2s ease;
-          box-shadow: -18px 0 36px rgba(0, 0, 0, 0.16);
-        }
-        .side.open {
-          transform: translateX(0%);
-        }
-        .side-toggle {
-          position: fixed;
-          right: 12px;
-          top: 12px;
-          z-index: 100;
-          background: var(--red);
-          color: #fff;
-          border: 0;
-          border-radius: 10px;
-          padding: 10px 12px;
-          font-weight: 900;
-          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-        }
-      }
 
-      .shake {
-        animation: shake 0.25s ease;
-      }
-      @keyframes shake {
-        0% {
-          transform: translateX(0);
+        * {
+            box-sizing: border-box;
         }
-        25% {
-          transform: translateX(-6px);
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
         }
-        50% {
-          transform: translateX(6px);
+
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+                sans-serif;
+            color: var(--deep);
+            background: radial-gradient(800px 420px at 20% -10%,
+                    rgba(248, 113, 113, 0.14) 0%,
+                    transparent 70%),
+                radial-gradient(700px 420px at 80% 110%,
+                    rgba(250, 204, 21, 0.14) 0%,
+                    transparent 70%),
+                linear-gradient(180deg, #fff 0%, #fff8f0 80%);
+            overflow: hidden;
         }
-        75% {
-          transform: translateX(-4px);
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) var(--sidebar-w);
+            height: 100vh;
+            width: 100vw;
         }
-        100% {
-          transform: translateX(0);
+
+        /* Play area */
+        .stage {
+            position: relative;
+            height: 100%;
+            background: linear-gradient(180deg, #ffffff 0%, #fffdf9 70%);
+            touch-action: none;
+            user-select: none;
+            overflow: hidden;
         }
-      }
+
+        /* Overlay */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: rgba(255, 255, 255, 0.92);
+            text-align: center;
+            padding: 24px;
+            backdrop-filter: saturate(1.02) blur(2px);
+            z-index: 50;
+        }
+
+        .card {
+            background: #fff;
+            padding: 22px;
+            border-radius: 14px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+            width: min(700px, 92vw);
+            position: relative;
+            z-index: 60;
+        }
+
+        .overlay h1 {
+            font-size: clamp(28px, 4.6vw, 52px);
+            margin: 0 0 8px;
+            color: var(--red);
+        }
+
+        .overlay p {
+            margin: 8px 0;
+            color: var(--deep);
+            font-size: calc(16px * var(--scale));
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--red);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: calc(10px * var(--scale)) calc(18px * var(--scale));
+            font-weight: 900;
+            cursor: pointer;
+            transition: transform 0.06s ease;
+            font-size: calc(16px * var(--scale));
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .input {
+            padding: calc(10px * var(--scale)) calc(12px * var(--scale));
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            min-width: 260px;
+            font-weight: 700;
+            color: #1f2937;
+            font-size: calc(16px * var(--scale));
+        }
+
+        /* Visually hidden utility for accessible headings in the sidebar */
+        .sr-only {
+            position: absolute !important;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Basket and items */
+        .basket {
+            position: absolute;
+            bottom: calc(18px * var(--scale));
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(118px * var(--scale));
+            height: calc(58px * var(--scale));
+            /* widened for ease */
+            background: conic-gradient(from 0deg, #f59e0b, #fbbf24, #f59e0b);
+            border: 0;
+            border-radius: 14px 14px 22px 22px/14px 14px 24px 24px;
+            box-shadow: 0 6px 0 #78350f inset, 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .fall {
+            position: absolute;
+            top: -70px;
+            width: calc(56px * var(--scale));
+            height: calc(64px * var(--scale));
+            display: grid;
+            place-items: center;
+            font-size: calc(36px * var(--scale));
+            line-height: 1;
+            filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        .fall.coin {
+            width: calc(54px * var(--scale));
+            height: calc(54px * var(--scale));
+            border-radius: 50%;
+            background: var(--gold);
+            border: 3px solid var(--gold-deep);
+            font-size: calc(30px * var(--scale));
+        }
+
+        .fall.bad {
+            width: calc(50px * var(--scale));
+            height: calc(72px * var(--scale));
+            font-size: calc(38px * var(--scale));
+        }
+
+        .score-pop {
+            position: absolute;
+            font-weight: 900;
+            color: var(--good);
+            animation: pop 0.6s ease-out forwards;
+            pointer-events: none;
+            font-size: calc(18px * var(--scale));
+        }
+
+        @keyframes pop {
+            0% {
+                opacity: 0;
+                transform: translateY(4px) scale(0.9);
+            }
+
+            30% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-16px) scale(1);
+            }
+        }
+
+        /* Right column */
+        .side {
+            height: 100vh;
+            background: linear-gradient(180deg, #fffaf3 0%, #ffffff 50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            z-index: 10;
+            box-shadow: -10px 0 24px rgba(0, 0, 0, 0.06);
+            border-left: 3px solid var(--red);
+            /* left border */
+        }
+
+        .brand {
+            font-weight: 900;
+            color: var(--red);
+            letter-spacing: 0.3px;
+            margin-bottom: 6px;
+        }
+
+        .chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            background: #fff;
+            border: 0;
+            border-radius: 999px;
+            padding: 10px 14px;
+            font-weight: 800;
+            color: var(--red);
+            font-size: 15px;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .progress-block {
+            display: grid;
+            gap: 8px;
+        }
+
+        .goal-label {
+            font-weight: 800;
+            color: var(--deep);
+            font-size: 14px;
+        }
+
+        .goalbar {
+            height: 12px;
+            background: #fde68a;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .goalbar>.fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg,
+                    #f59e0b 0%,
+                    #fbbf24 50%,
+                    var(--gold) 100%);
+            transition: width 0.18s ease;
+        }
+
+        .records {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .rec-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .rec-title {
+            font-weight: 800;
+            color: var(--red);
+            margin: 0;
+        }
+
+        .icon-btn {
+            background: #fff;
+            border: 2px solid var(--red);
+            color: var(--red);
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .rec-body {
+            flex: 1;
+            overflow: auto;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .rec-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .rec-table th,
+        .rec-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .rec-table th {
+            color: var(--red);
+            background: #fff7ed;
+            position: sticky;
+            top: 0;
+        }
+
+        .muted {
+            color: #6b7280;
+            font-size: 12px;
+            padding: 10px;
+        }
+
+        @media (max-width: 980px) {
+            :root {
+                --sidebar-w: 0px;
+            }
+
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .side {
+                position: fixed;
+                top: 0;
+                right: 0;
+                height: 100vh;
+                width: 88vw;
+                transform: translateX(100%);
+                transition: transform 0.2s ease;
+                box-shadow: -18px 0 36px rgba(0, 0, 0, 0.16);
+            }
+
+            .side.open {
+                transform: translateX(0%);
+            }
+
+            .side-toggle {
+                position: fixed;
+                right: 12px;
+                top: 12px;
+                z-index: 100;
+                background: var(--red);
+                color: #fff;
+                border: 0;
+                border-radius: 10px;
+                padding: 10px 12px;
+                font-weight: 900;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+            }
+        }
+
+        .shake {
+            animation: shake 0.25s ease;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-6px);
+            }
+
+            50% {
+                transform: translateX(6px);
+            }
+
+            75% {
+                transform: translateX(-4px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
     </style>
-  </head>
-  <body>
+</head>
+
+<body>
     <button class="side-toggle" id="sideToggle" style="display: none">
-      Records
+        Records
     </button>
 
     <div class="layout">
-      <!-- Left: Play -->
-      <div
-        class="stage"
-        id="stage"
-        role="application"
-        aria-label="CNY two column game"
-      >
-        <div class="overlay" id="overlay"></div>
-        <div class="basket" id="basket" aria-label="Basket"></div>
-      </div>
-
-      <!-- Right: HUD + progress + records -->
-      <aside class="side" id="side">
-        <h1 class="sr-only">Lucky Catch Chinese New Year Game</h1>
-        <div class="brand">Lucky Catch</div>
-
-        <h2 class="sr-only">Game status</h2>
-        <div class="chips">
-          <div class="chip">Score: <span id="score">0</span></div>
-          <div class="chip">Time: <span id="time">30</span>s</div>
-          <div class="chip">Combo: <span id="combo">x1</span></div>
-          <div class="chip">Goal: <span id="goal">1000</span></div>
+        <!-- Left: Play -->
+        <div class="stage" id="stage" role="application" aria-label="CNY two column game">
+            <div class="overlay" id="overlay"></div>
+            <div class="basket" id="basket" aria-label="Basket"></div>
         </div>
 
-        <div class="progress-block">
-          <div class="goal-label">Score progress</div>
-          <div class="goalbar" aria-hidden="true">
-            <div class="fill" id="goalFill"></div>
-          </div>
-        </div>
+        <!-- Right: HUD + progress + records -->
+        <aside class="side" id="side">
+            <h1 class="sr-only">Lucky Catch Chinese New Year Game</h1>
+            <div class="brand">Lucky Catch</div>
 
-        <div class="records">
-          <div class="rec-head">
-            <h2 class="rec-title">Records</h2>
-            <button class="icon-btn" id="clearBoard">Clear</button>
-          </div>
-          <div class="rec-body">
-            <table class="rec-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Name</th>
-                  <th>Score</th>
-                  <th>When</th>
-                </tr>
-              </thead>
-              <tbody id="recRows">
-                <tr>
-                  <td colspan="4" class="muted">No records yet</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </aside>
+            <h2 class="sr-only">Game status</h2>
+            <div class="chips">
+                <div class="chip">Score: <span id="score">0</span></div>
+                <div class="chip">Time: <span id="time">30</span>s</div>
+                <div class="chip">Combo: <span id="combo">x1</span></div>
+                <div class="chip">Goal: <span id="goal">1000</span></div>
+            </div>
+
+            <div class="progress-block">
+                <div class="goal-label">Score progress</div>
+                <div class="goalbar" aria-hidden="true">
+                    <div class="fill" id="goalFill"></div>
+                </div>
+            </div>
+
+            <div class="records">
+                <div class="rec-head">
+                    <h2 class="rec-title">Records</h2>
+                    <button class="icon-btn" id="clearBoard">Clear</button>
+                </div>
+                <div class="rec-body">
+                    <table class="rec-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Score</th>
+                                <th>When</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recRows">
+                            <tr>
+                                <td colspan="4" class="muted">No records yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
     </div>
 
     <script>
-      (() => {
-        // Config
-        const TARGET_SCORE = 1000;
-        const ROUND_TIME = 30;
+        (() => {
+            // Config
+            const TARGET_SCORE = 1000;
+            const ROUND_TIME = 30;
 
-        // Elements
-        const stage = document.getElementById("stage");
-        const overlay = document.getElementById("overlay");
-        const basket = document.getElementById("basket");
-        const scoreEl = document.getElementById("score");
-        const timeEl = document.getElementById("time");
-        const comboEl = document.getElementById("combo");
-        const goalEl = document.getElementById("goal");
-        const goalFill = document.getElementById("goalFill");
-        const recRows = document.getElementById("recRows");
-        const clearBtn = document.getElementById("clearBoard");
-        const side = document.getElementById("side");
-        const sideToggle = document.getElementById("sideToggle");
-        goalEl.textContent = TARGET_SCORE;
+            // Elements
+            const stage = document.getElementById("stage");
+            const overlay = document.getElementById("overlay");
+            const basket = document.getElementById("basket");
+            const scoreEl = document.getElementById("score");
+            const timeEl = document.getElementById("time");
+            const comboEl = document.getElementById("combo");
+            const goalEl = document.getElementById("goal");
+            const goalFill = document.getElementById("goalFill");
+            const recRows = document.getElementById("recRows");
+            const clearBtn = document.getElementById("clearBoard");
+            const side = document.getElementById("side");
+            const sideToggle = document.getElementById("sideToggle");
+            goalEl.textContent = TARGET_SCORE;
 
-        // Start screen with welcome heading and text
-        function showStartForm(defaultName = "") {
-          overlay.innerHTML = `
+            // Start screen with welcome heading and text
+            function showStartForm(defaultName = "") {
+                overlay.innerHTML = `
       <div class="card">
         <h1>Gong Xi Fa Cai</h1>
         <p>Welcome to Lucky Catch. Grab red envelopes, coins, and dumplings. Avoid firecrackers, bombs, and chili.</p>
         <p><strong>Goal:</strong> reach ${TARGET_SCORE} points in 30 seconds.</p>
         <div class="row" style="margin-top:12px">
           <input id="playerName" class="input" placeholder="Name of the player" value="${defaultName.replace(
-            /"/g,
-            "&quot;"
-          )}" />
+                    /"/g,
+                    "&quot;"
+                )}" />
           <button class="btn" id="startBtn">Start</button>
         </div>
       </div>`;
-          overlay.style.display = "grid";
-          const startBtn = document.getElementById("startBtn");
-          const nameEl = document.getElementById("playerName");
-          startBtn.onclick = () => startGame(nameEl.value.trim());
-          nameEl.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") startBtn.click();
-          });
-          nameEl.focus();
-        }
+                overlay.style.display = "grid";
+                const startBtn = document.getElementById("startBtn");
+                const nameEl = document.getElementById("playerName");
+                startBtn.onclick = () => startGame(nameEl.value.trim());
+                nameEl.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") startBtn.click();
+                });
+                nameEl.focus();
+            }
 
-        // Sidebar drawer for mobile
-        function updateSidebarMode() {
-          const isMobile = window.matchMedia("(max-width: 980px)").matches;
-          sideToggle.style.display = isMobile ? "block" : "none";
-          if (!isMobile) side.classList.remove("open");
-        }
-        updateSidebarMode();
-        window.addEventListener("resize", updateSidebarMode);
-        sideToggle.onclick = () => side.classList.toggle("open");
+            // Sidebar drawer for mobile
+            function updateSidebarMode() {
+                const isMobile = window.matchMedia("(max-width: 980px)").matches;
+                sideToggle.style.display = isMobile ? "block" : "none";
+                if (!isMobile) side.classList.remove("open");
+            }
+            updateSidebarMode();
+            window.addEventListener("resize", updateSidebarMode);
+            sideToggle.onclick = () => side.classList.toggle("open");
 
-        // Audio
-        let audioCtx = null;
-        let musicTimer = null;
-        let masterGain = null;
+            // Audio
+            let audioCtx = null;
+            let musicTimer = null;
+            let masterGain = null;
 
-        function ensureAudio() {
-          if (audioCtx) return;
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          masterGain = audioCtx.createGain();
-          masterGain.gain.value = 0.7;
-          masterGain.connect(audioCtx.destination);
-        }
+            function ensureAudio() {
+                if (audioCtx) return;
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.7;
+                masterGain.connect(audioCtx.destination);
+            }
 
-        function sfx(good = true) {
-          ensureAudio();
-          const o = audioCtx.createOscillator(),
-            g = audioCtx.createGain();
-          o.connect(g);
-          g.connect(masterGain);
-          o.type = good ? "triangle" : "square";
-          const now = audioCtx.currentTime;
-          o.frequency.setValueAtTime(good ? 760 : 180, now);
-          g.gain.setValueAtTime(0.0001, now);
-          g.gain.exponentialRampToValueAtTime(0.16, now + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-          o.start(now);
-          o.stop(now + 0.13);
-        }
+            function sfx(good = true) {
+                ensureAudio();
+                const o = audioCtx.createOscillator(),
+                    g = audioCtx.createGain();
+                o.connect(g);
+                g.connect(masterGain);
+                o.type = good ? "triangle" : "square";
+                const now = audioCtx.currentTime;
+                o.frequency.setValueAtTime(good ? 760 : 180, now);
+                g.gain.setValueAtTime(0.0001, now);
+                g.gain.exponentialRampToValueAtTime(0.16, now + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+                o.start(now);
+                o.stop(now + 0.13);
+            }
 
-        function startMusic() {
-          ensureAudio();
-          stopMusic();
-          const bpm = 112; // slightly calmer again
-          const stepMs = (60 / bpm) * 1000;
-          const scale = [261.63, 293.66, 329.63, 392.0, 523.25]; // pentatonic
-          let i = 0;
-          musicTimer = setInterval(() => {
-            if (i % 2 === 0) note(65.41, 0.22, "sine", 0.08); // bass pulse
-            const f = scale[(i * 3) % scale.length];
-            note(f, 0.16, "triangle", 0.12);
-            if (i % 8 === 4)
-              note(scale[(i * 3 + 1) % scale.length] * 1.5, 0.12, "sine", 0.06);
-            i++;
-          }, stepMs);
+            function startMusic() {
+                ensureAudio();
+                stopMusic();
+                const bpm = 112; // slightly calmer again
+                const stepMs = (60 / bpm) * 1000;
+                const scale = [261.63, 293.66, 329.63, 392.0, 523.25]; // pentatonic
+                let i = 0;
+                musicTimer = setInterval(() => {
+                    if (i % 2 === 0) note(65.41, 0.22, "sine", 0.08); // bass pulse
+                    const f = scale[(i * 3) % scale.length];
+                    note(f, 0.16, "triangle", 0.12);
+                    if (i % 8 === 4)
+                        note(scale[(i * 3 + 1) % scale.length] * 1.5, 0.12, "sine", 0.06);
+                    i++;
+                }, stepMs);
 
-          function note(freq, dur, type = "sine", vol = 0.1) {
-            const o = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            o.type = type;
-            o.frequency.value = freq;
-            o.connect(g);
-            g.connect(masterGain);
-            const now = audioCtx.currentTime;
-            g.gain.setValueAtTime(0.0001, now);
-            g.gain.exponentialRampToValueAtTime(vol, now + 0.02);
-            g.gain.exponentialRampToValueAtTime(
-              0.0001,
-              now + Math.max(dur, 0.12)
-            );
-            o.start(now);
-            o.stop(now + Math.max(dur, 0.14));
-          }
-        }
-        function stopMusic() {
-          if (musicTimer) {
-            clearInterval(musicTimer);
-            musicTimer = null;
-          }
-        }
+                function note(freq, dur, type = "sine", vol = 0.1) {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = type;
+                    o.frequency.value = freq;
+                    o.connect(g);
+                    g.connect(masterGain);
+                    const now = audioCtx.currentTime;
+                    g.gain.setValueAtTime(0.0001, now);
+                    g.gain.exponentialRampToValueAtTime(vol, now + 0.02);
+                    g.gain.exponentialRampToValueAtTime(
+                        0.0001,
+                        now + Math.max(dur, 0.12)
+                    );
+                    o.start(now);
+                    o.stop(now + Math.max(dur, 0.14));
+                }
+            }
+            function stopMusic() {
+                if (musicTimer) {
+                    clearInterval(musicTimer);
+                    musicTimer = null;
+                }
+            }
 
-        // Game state
-        const TARGET_COMBO_MAX = 4;
-        let running = false,
-          paused = false,
-          score = 0,
-          timeLeft = ROUND_TIME;
-        let combo = 1,
-          comboTimer = 0,
-          basketX = 0.5,
-          velocityX = 0,
-          lastTs = 0,
-          spawnCarry = 0,
-          raf = 0;
-        let currentPlayer = "";
+            // Game state
+            const TARGET_COMBO_MAX = 4;
+            let running = false,
+                paused = false,
+                score = 0,
+                timeLeft = ROUND_TIME;
+            let combo = 1,
+                comboTimer = 0,
+                basketX = 0.5,
+                velocityX = 0,
+                lastTs = 0,
+                spawnCarry = 0,
+                raf = 0;
+            let currentPlayer = "";
 
-        const falls = new Set();
-        const GOODS = [
-          { type: "hongbao", emoji: "🧧", w: 56, h: 64, score: 14 },
-          { type: "coin", emoji: "🪙", w: 54, h: 54, score: 18, asCoin: true },
-          { type: "dumpling", emoji: "🥟", w: 56, h: 64, score: 20 },
-        ];
-        // Softer traps
-        const BADS = [
-          {
-            type: "firecracker",
-            emoji: "🧨",
-            w: 50,
-            h: 72,
-            penalty: -22,
-            knock: 0.8,
-          },
-          {
-            type: "bomb",
-            emoji: "💣",
-            w: 54,
-            h: 72,
-            penalty: -35,
-            knock: 1.05,
-          },
-          {
-            type: "chili",
-            emoji: "🌶️",
-            w: 50,
-            h: 64,
-            penalty: -15,
-            knock: 0.6,
-          },
-        ];
+            const falls = new Set();
+            const GOODS = [
+                { type: "hongbao", emoji: "🧧", w: 56, h: 64, score: 14 },
+                { type: "coin", emoji: "🪙", w: 54, h: 54, score: 18, asCoin: true },
+                { type: "dumpling", emoji: "🥟", w: 56, h: 64, score: 20 },
+            ];
+            // Softer traps
+            const BADS = [
+                {
+                    type: "firecracker",
+                    emoji: "🧨",
+                    w: 50,
+                    h: 72,
+                    penalty: -22,
+                    knock: 0.8,
+                },
+                {
+                    type: "bomb",
+                    emoji: "💣",
+                    w: 54,
+                    h: 72,
+                    penalty: -35,
+                    knock: 1.05,
+                },
+                {
+                    type: "chili",
+                    emoji: "🌶️",
+                    w: 50,
+                    h: 64,
+                    penalty: -15,
+                    knock: 0.6,
+                },
+            ];
 
-        // Utils
-        const rand = (min, max) => Math.random() * (max - min) + min;
-        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-        const stageRect = () => stage.getBoundingClientRect();
+            // Utils
+            const rand = (min, max) => Math.random() * (max - min) + min;
+            const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+            const stageRect = () => stage.getBoundingClientRect();
 
-        function updateGoalFill() {
-          goalFill.style.width =
-            Math.min(100, (score / TARGET_SCORE) * 100) + "%";
-        }
-        function setBasketPos() {
-          const { width } = stageRect();
-          const px = clamp(basketX, 0, 1) * (width - basket.offsetWidth);
-          basket.style.left = px + "px";
-        }
+            function updateGoalFill() {
+                goalFill.style.width =
+                    Math.min(100, (score / TARGET_SCORE) * 100) + "%";
+            }
+            function setBasketPos() {
+                const { width } = stageRect();
+                const px = clamp(basketX, 0, 1) * (width - basket.offsetWidth);
+                basket.style.left = px + "px";
+            }
 
-        function spawnFall() {
-          const goodChance = 0.75; // more goodies
-          const isGood = Math.random() < goodChance;
-          const data = isGood
-            ? GOODS[Math.floor(Math.random() * GOODS.length)]
-            : BADS[Math.floor(Math.random() * BADS.length)];
-          const el = document.createElement("div");
-          el.className =
-            "fall" + (isGood ? "" : " bad") + (data.asCoin ? " coin" : "");
-          el.textContent = data.emoji;
+            function spawnFall() {
+                const goodChance = 0.75; // more goodies
+                const isGood = Math.random() < goodChance;
+                const data = isGood
+                    ? GOODS[Math.floor(Math.random() * GOODS.length)]
+                    : BADS[Math.floor(Math.random() * BADS.length)];
+                const el = document.createElement("div");
+                el.className =
+                    "fall" + (isGood ? "" : " bad") + (data.asCoin ? " coin" : "");
+                el.textContent = data.emoji;
 
-          const { width } = stageRect();
-          const x = rand(12, width - 70);
-          el.style.left = x + "px";
-          el.style.top = "-70px";
+                const { width } = stageRect();
+                const x = rand(12, width - 70);
+                el.style.left = x + "px";
+                el.style.top = "-70px";
 
-          // Slower drop
-          const obj = {
-            el,
-            x,
-            y: -70,
-            vy: rand(140, 220),
-            rx: rand(-26, 26),
-            good: isGood,
-            data,
-          };
-          stage.appendChild(el);
-          falls.add(obj);
-        }
+                // Initial setup for gradual falling
+                //Slow Drop
+                const obj = {
+                    el,
+                    x,
+                    y: -70,
+                    vy: rand(80, 120), // Reduced initial velocity
+                    maxVy: rand(180, 240), // Maximum fall speed
+                    acceleration: rand(50, 80), // Gradual acceleration
+                    rx: rand(-26, 26),
+                    good: isGood,
+                    data,
+                };
+                stage.appendChild(el);
+                falls.add(obj);
+            }
 
-        function popScore(x, y, txt, good = true) {
-          const sp = document.createElement("div");
-          sp.className = "score-pop";
-          sp.style.left = x + "px";
-          sp.style.top = y + "px";
-          sp.style.color = good ? "var(--good)" : "var(--bad)";
-          sp.textContent = (good ? "+" : "") + txt;
-          stage.appendChild(sp);
-          setTimeout(() => sp.remove(), 650);
-        }
+            function popScore(x, y, txt, good = true) {
+                const sp = document.createElement("div");
+                sp.className = "score-pop";
+                sp.style.left = x + "px";
+                sp.style.top = y + "px";
+                sp.style.color = good ? "var(--good)" : "var(--bad)";
+                sp.textContent = (good ? "+" : "") + txt;
+                stage.appendChild(sp);
+                setTimeout(() => sp.remove(), 650);
+            }
 
-        function confetti() {
-          const { width, height } = stageRect();
-          for (let i = 0; i < 120; i++) {
-            const c = document.createElement("div");
-            c.style.position = "absolute";
-            c.style.width = "10px";
-            c.style.height = "14px";
-            c.style.opacity = ".95";
-            c.style.left = rand(0, width) + "px";
-            c.style.top = "-20px";
-            c.style.background = [
-              "#ef4444",
-              "#f59e0b",
-              "#facc15",
-              "#22c55e",
-              "#3b82f6",
-              "#a855f7",
-            ][Math.floor(rand(0, 6))];
-            stage.appendChild(c);
-            const vy = rand(140, 240),
-              vx = rand(-50, 50),
-              rot = rand(-200, 200),
-              start = performance.now();
-            const tick = (t) => {
-              const dt = (t - start) / 1000;
-              c.style.top = vy * dt - 20 + "px";
-              c.style.left = parseFloat(c.style.left) + (vx * dt) / 30 + "px";
-              c.style.transform = `rotate(${rot * dt}deg)`;
-              if (parseFloat(c.style.top) < height + 30) {
-                requestAnimationFrame(tick);
-              } else c.remove();
-            };
-            requestAnimationFrame(tick);
-          }
-        }
+            function confetti() {
+                const { width, height } = stageRect();
 
-        function shake() {
-          stage.classList.add("shake");
-          setTimeout(() => stage.classList.remove("shake"), 250);
-        }
+                const container = document.createElement("div");
+                container.style.position = "absolute";
+                container.style.inset = "0";
+                container.style.pointerEvents = "none";
+                container.style.zIndex = "1000"; // Ensure confetti appears above other elements
+                stage.appendChild(container);
 
-        function reset() {
-          score = 0;
-          timeLeft = ROUND_TIME;
-          combo = 1;
-          comboTimer = 0;
-          spawnCarry = 0;
-          velocityX = 0;
-          for (const f of falls) f.el.remove();
-          falls.clear();
-          scoreEl.textContent = "0";
-          timeEl.textContent = String(ROUND_TIME);
-          comboEl.textContent = "x1";
-          basketX = 0.5;
-          setBasketPos();
-          updateGoalFill();
-        }
+                // Enhanced confetti effect with more particles and varied sizes
+                for (let i = 0; i < 150; i++) { // Increased number of particles
+                    const c = document.createElement("div");
+                    c.style.position = "absolute";
+                    // Randomize confetti size for more dynamic effect
+                    const size = rand(8, 14);
+                    c.style.width = size + "px";
+                    c.style.height = size * 1.4 + "px";
+                    c.style.opacity = rand(0.8, 1); // Varied opacity
+                    c.style.left = rand(0, width) + "px";
+                    c.style.top = "-20px";
+                    // Enhanced color palette with brightness
+                    c.style.background = [ // Brighter colors
+                        "#ff4444", // Brighter red
+                        "#ff9e0b", // Brighter orange
+                        "#ffcc15", // Brighter yellow
+                        "#22ff5e", // Brighter green
+                        "#3b82ff", // Brighter blue
+                        "#a855ff", // Brighter purple
+                    ][Math.floor(rand(0, 6))];
+                    // Add shadow for depth
+                    c.style.boxShadow = "0 0 4px rgba(0,0,0,0.1)";
+                    container.appendChild(c);
 
-        function startGame(playerName) {
-          currentPlayer = (playerName || "Player").slice(0, 24);
-          reset();
-          running = true;
-          paused = false;
-          overlay.style.display = "none";
-          ensureAudio();
-          startMusic();
-          lastTs = performance.now();
-          cancelAnimationFrame(raf);
-          raf = requestAnimationFrame(loop);
-        }
+                    // Enhanced movement physics
+                    const vy = rand(120, 220), // Slightly slower fall
+                        vx = rand(-60, 60), // More horizontal movement
+                        rot = rand(-360, 360), // Full rotation possible
+                        start = performance.now();
 
-        function endGame(win = false) {
-          running = false;
-          if (win) confetti();
+                    const tick = (t) => {
+                        const dt = (t - start) / 1000;
+                        const progress = Math.min(dt * 1.5, 1); // Fade out factor
+                        c.style.top = (vy * dt - 20) + "px";
+                        c.style.left = (parseFloat(c.style.left) + (vx * dt) / 20) + "px";
+                        c.style.transform = `rotate(${rot * dt}deg) scale(${1 - progress * 0.3})`; // Add scale effect
+                        c.style.opacity = Math.max(0, 1 - progress); // Fade out gradually
 
-          saveScore(currentPlayer || "Player", score);
-          renderBoard();
-          stopMusic();
+                        if (parseFloat(c.style.top) < height + 50 && progress < 1) {
+                            requestAnimationFrame(tick);
+                        } else {
+                            c.remove();
+                            // Remove container when last confetti is gone
+                            if (!container.children.length) container.remove();
+                        }
+                    };
+                    requestAnimationFrame(tick);
+                }
+            }
 
-          overlay.innerHTML = `
+            function shake() {
+                stage.classList.add("shake");
+                setTimeout(() => stage.classList.remove("shake"), 250);
+            }
+
+            function reset() {
+                score = 0;
+                timeLeft = ROUND_TIME;
+                combo = 1;
+                comboTimer = 0;
+                spawnCarry = 0;
+                velocityX = 0;
+                for (const f of falls) f.el.remove();
+                falls.clear();
+                scoreEl.textContent = "0";
+                timeEl.textContent = String(ROUND_TIME);
+                comboEl.textContent = "x1";
+                basketX = 0.5;
+                setBasketPos();
+                updateGoalFill();
+            }
+
+            function startGame(playerName) {
+                currentPlayer = (playerName || "Player").slice(0, 24);
+                reset();
+                running = true;
+                paused = false;
+                overlay.style.display = "none";
+                ensureAudio();
+                startMusic();
+                lastTs = performance.now();
+                cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(loop);
+            }
+
+            function endGame(win = false) {
+                running = false;
+                if (win) confetti();
+
+                saveScore(currentPlayer || "Player", score);
+                renderBoard();
+                stopMusic();
+
+                overlay.innerHTML = `
       <div class="card">
         <h1>${win ? "Great job" : "Time up"}</h1>
         <p>Your score: <strong>${score}</strong></p>
@@ -748,220 +807,222 @@
           <button class="btn" id="newPlayerBtn">New Player</button>
         </div>
       </div>`;
-          overlay.style.display = "grid";
-          document.getElementById("newPlayerBtn").onclick = () =>
-            showStartForm("");
-        }
-
-        function loop(ts) {
-          if (!running || paused) return;
-          const dt = Math.min((ts - lastTs) / 1000, 0.033);
-          lastTs = ts;
-
-          if (score >= TARGET_SCORE) return endGame(true);
-          timeLeft -= dt;
-          if (timeLeft <= 0) {
-            timeLeft = 0;
-            timeEl.textContent = "0";
-            return endGame(false);
-          }
-          timeEl.textContent = String(Math.ceil(timeLeft));
-
-          // Easier spawn scaling
-          const level = 1 + (ROUND_TIME - timeLeft) / 16;
-          const spawnRate = 2.7 * level; // was 3.1 in hard
-          spawnCarry += spawnRate * dt;
-          while (spawnCarry >= 1) {
-            spawnFall();
-            spawnCarry -= 1;
-          }
-
-          basketX = clamp(basketX + velocityX * dt, 0, 1);
-          velocityX *= 0.9;
-          setBasketPos();
-
-          const bRect = basket.getBoundingClientRect();
-          const sRect = stageRect();
-
-          for (const f of Array.from(falls)) {
-            f.y += f.vy * dt;
-            f.x += f.rx * dt * 0.2;
-            f.el.style.top = f.y + "px";
-            f.el.style.left = clamp(f.x, 4, sRect.width - 70) + "px";
-
-            const r = f.el.getBoundingClientRect();
-            const overlap = !(
-              r.right < bRect.left ||
-              r.left > bRect.right ||
-              r.bottom < bRect.top ||
-              r.top > bRect.bottom
-            );
-            if (overlap && f.y > bRect.top - sRect.top - 18) {
-              if (f.good) {
-                const gain = Math.round(f.data.score * combo);
-                score += gain;
-                combo = Math.min(TARGET_COMBO_MAX, +(combo + 0.14).toFixed(2));
-                comboTimer = 1.8;
-                scoreEl.textContent = String(score);
-                comboEl.textContent = "x" + String(combo).replace(/\.00$/, "");
-                popScore(r.left, r.top, gain, true);
-                sfx(true);
-              } else {
-                score = Math.max(0, score + (f.data.penalty || -15));
-                combo = 1;
-                comboEl.textContent = "x1";
-                scoreEl.textContent = String(score);
-                popScore(r.left, r.top, f.data.penalty || -15, false);
-                const dir = Math.random() < 0.5 ? -1 : 1;
-                velocityX += dir * (f.data.knock || 0.6);
-                shake();
-                sfx(false);
-              }
-              updateGoalFill();
-              f.el.remove();
-              falls.delete(f);
-            } else if (f.y > sRect.height + 90) {
-              if (f.good) combo = Math.max(1, +(combo - 0.08).toFixed(2)); // slower decay
-              comboEl.textContent = "x" + String(combo).replace(/\.00$/, "");
-              f.el.remove();
-              falls.delete(f);
+                overlay.style.display = "grid";
+                document.getElementById("newPlayerBtn").onclick = () =>
+                    showStartForm("");
             }
-          }
 
-          if (combo > 1) {
-            comboTimer -= dt;
-            if (comboTimer <= 0) {
-              combo = Math.max(1, +(combo - 0.05).toFixed(2));
-              comboTimer = 0.65; // longer between decays
-              comboEl.textContent = "x" + String(combo).replace(/\.00$/, "");
-            }
-          }
-          raf = requestAnimationFrame(loop);
-        }
+            function loop(ts) {
+                if (!running || paused) return;
+                const dt = Math.min((ts - lastTs) / 1000, 0.033);
+                lastTs = ts;
 
-        // Input
-        function moveAmt() {
-          return 0.9 / 16;
-        }
-        function keyDown(e) {
-          const k = e.key.toLowerCase();
-          if (k === "arrowleft" || k === "a") {
-            basketX -= moveAmt();
-            velocityX = -0.8;
-            setBasketPos();
-          }
-          if (k === "arrowright" || k === "d") {
-            basketX += moveAmt();
-            velocityX = 0.8;
-            setBasketPos();
-          }
-          if (k === "p") {
-            if (!running) return;
-            paused = !paused;
-            if (!paused) {
-              overlay.style.display = "none";
-              startMusic();
-              lastTs = performance.now();
-              raf = requestAnimationFrame(loop);
-            } else {
-              stopMusic();
-              overlay.innerHTML =
-                '<div class="card"><h1>Paused</h1><div class="row"><button class="btn" id="resumeBtn">Resume</button><button class="btn" id="newPlayerBtn">New Player</button></div></div>';
-              overlay.style.display = "grid";
-              document.getElementById("resumeBtn").onclick = () => {
-                paused = false;
-                overlay.style.display = "none";
-                startMusic();
-                lastTs = performance.now();
+                if (score >= TARGET_SCORE) return endGame(true);
+                timeLeft -= dt;
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    timeEl.textContent = "0";
+                    return endGame(false);
+                }
+                timeEl.textContent = String(Math.ceil(timeLeft));
+
+                // Easier spawn scaling
+                const level = 1 + (ROUND_TIME - timeLeft) / 16;
+                const spawnRate = 2.7 * level; // was 3.1 in hard
+                spawnCarry += spawnRate * dt;
+                while (spawnCarry >= 1) {
+                    spawnFall();
+                    spawnCarry -= 1;
+                }
+
+                basketX = clamp(basketX + velocityX * dt, 0, 1);
+                velocityX *= 0.9;
+                setBasketPos();
+
+                const bRect = basket.getBoundingClientRect();
+                const sRect = stageRect();
+
+                for (const f of Array.from(falls)) {
+                    // Apply gradual acceleration to falling speed
+                    f.vy = Math.min(f.vy + f.acceleration * dt, f.maxVy);
+                    f.y += f.vy * dt;
+                    f.x += f.rx * dt * 0.2;
+                    f.el.style.top = f.y + "px";
+                    f.el.style.left = clamp(f.x, 4, sRect.width - 70) + "px";
+
+                    const r = f.el.getBoundingClientRect();
+                    const overlap = !(
+                        r.right < bRect.left ||
+                        r.left > bRect.right ||
+                        r.bottom < bRect.top ||
+                        r.top > bRect.bottom
+                    );
+                    if (overlap && f.y > bRect.top - sRect.top - 18) {
+                        if (f.good) {
+                            const gain = Math.round(f.data.score * combo);
+                            score += gain;
+                            combo = Math.min(TARGET_COMBO_MAX, +(combo + 0.14).toFixed(2));
+                            comboTimer = 1.8;
+                            scoreEl.textContent = String(score);
+                            comboEl.textContent = "x" + String(combo).replace(/\.00$/, "");
+                            popScore(r.left, r.top, gain, true);
+                            sfx(true);
+                        } else {
+                            score = Math.max(0, score + (f.data.penalty || -15));
+                            combo = 1;
+                            comboEl.textContent = "x1";
+                            scoreEl.textContent = String(score);
+                            popScore(r.left, r.top, f.data.penalty || -15, false);
+                            const dir = Math.random() < 0.5 ? -1 : 1;
+                            velocityX += dir * (f.data.knock || 0.6);
+                            shake();
+                            sfx(false);
+                        }
+                        updateGoalFill();
+                        f.el.remove();
+                        falls.delete(f);
+                    } else if (f.y > sRect.height + 90) {
+                        if (f.good) combo = Math.max(1, +(combo - 0.08).toFixed(2)); // slower decay
+                        comboEl.textContent = "x" + String(combo).replace(/\.00$/, "");
+                        f.el.remove();
+                        falls.delete(f);
+                    }
+                }
+
+                if (combo > 1) {
+                    comboTimer -= dt;
+                    if (comboTimer <= 0) {
+                        combo = Math.max(1, +(combo - 0.05).toFixed(2));
+                        comboTimer = 0.65; // longer between decays
+                        comboEl.textContent = "x" + String(combo).replace(/\.00$/, "");
+                    }
+                }
                 raf = requestAnimationFrame(loop);
-              };
-              document.getElementById("newPlayerBtn").onclick = () => {
-                paused = false;
-                showStartForm("");
-              };
             }
-          }
-        }
-        window.addEventListener("keydown", keyDown);
 
-        let dragging = false;
-        function pointer(clientX) {
-          const rect = stageRect();
-          basketX = clamp((clientX - rect.left) / rect.width, 0, 1);
-          setBasketPos();
-        }
-        stage.addEventListener("pointerdown", (e) => {
-          dragging = true;
-          pointer(e.clientX);
-        });
-        window.addEventListener("pointermove", (e) => {
-          if (dragging) pointer(e.clientX);
-        });
-        window.addEventListener("pointerup", () => (dragging = false));
-        window.addEventListener("blur", () => {
-          if (running && !paused) {
-            paused = true;
-            stopMusic();
-            overlay.innerHTML =
-              '<div class="card"><h1>Paused</h1><div class="row"><button class="btn" id="resumeBtn">Resume</button><button class="btn" id="newPlayerBtn">New Player</button></div></div>';
-            overlay.style.display = "grid";
-            document.getElementById("resumeBtn").onclick = () => {
-              paused = false;
-              overlay.style.display = "none";
-              startMusic();
-              lastTs = performance.now();
-              raf = requestAnimationFrame(loop);
+            // Input
+            function moveAmt() {
+                return 0.9 / 16;
+            }
+            function keyDown(e) {
+                const k = e.key.toLowerCase();
+                if (k === "arrowleft" || k === "a") {
+                    basketX -= moveAmt();
+                    velocityX = -0.8;
+                    setBasketPos();
+                }
+                if (k === "arrowright" || k === "d") {
+                    basketX += moveAmt();
+                    velocityX = 0.8;
+                    setBasketPos();
+                }
+                if (k === "p") {
+                    if (!running) return;
+                    paused = !paused;
+                    if (!paused) {
+                        overlay.style.display = "none";
+                        startMusic();
+                        lastTs = performance.now();
+                        raf = requestAnimationFrame(loop);
+                    } else {
+                        stopMusic();
+                        overlay.innerHTML =
+                            '<div class="card"><h1>Paused</h1><div class="row"><button class="btn" id="resumeBtn">Resume</button><button class="btn" id="newPlayerBtn">New Player</button></div></div>';
+                        overlay.style.display = "grid";
+                        document.getElementById("resumeBtn").onclick = () => {
+                            paused = false;
+                            overlay.style.display = "none";
+                            startMusic();
+                            lastTs = performance.now();
+                            raf = requestAnimationFrame(loop);
+                        };
+                        document.getElementById("newPlayerBtn").onclick = () => {
+                            paused = false;
+                            showStartForm("");
+                        };
+                    }
+                }
+            }
+            window.addEventListener("keydown", keyDown);
+
+            let dragging = false;
+            function pointer(clientX) {
+                const rect = stageRect();
+                basketX = clamp((clientX - rect.left) / rect.width, 0, 1);
+                setBasketPos();
+            }
+            stage.addEventListener("pointerdown", (e) => {
+                dragging = true;
+                pointer(e.clientX);
+            });
+            window.addEventListener("pointermove", (e) => {
+                if (dragging) pointer(e.clientX);
+            });
+            window.addEventListener("pointerup", () => (dragging = false));
+            window.addEventListener("blur", () => {
+                if (running && !paused) {
+                    paused = true;
+                    stopMusic();
+                    overlay.innerHTML =
+                        '<div class="card"><h1>Paused</h1><div class="row"><button class="btn" id="resumeBtn">Resume</button><button class="btn" id="newPlayerBtn">New Player</button></div></div>';
+                    overlay.style.display = "grid";
+                    document.getElementById("resumeBtn").onclick = () => {
+                        paused = false;
+                        overlay.style.display = "none";
+                        startMusic();
+                        lastTs = performance.now();
+                        raf = requestAnimationFrame(loop);
+                    };
+                    document.getElementById("newPlayerBtn").onclick = () => {
+                        paused = false;
+                        showStartForm("");
+                    };
+                }
+            });
+
+            // Records
+            const KEY = "cny_leaderboard";
+            function readBoard() {
+                try {
+                    return JSON.parse(localStorage.getItem(KEY) || "[]");
+                } catch {
+                    return [];
+                }
+            }
+            function saveScore(name, pts) {
+                const now = new Date().toISOString().replace("T", " ").slice(0, 16);
+                const data = readBoard();
+                data.push({ name, pts, date: now });
+                data.sort((a, b) => b.pts - a.pts);
+                localStorage.setItem(KEY, JSON.stringify(data.slice(0, 20)));
+            }
+            function renderBoard() {
+                const data = readBoard();
+                if (!data.length) {
+                    recRows.innerHTML =
+                        '<tr><td colspan="4" class="muted">No records yet</td></tr>';
+                    return;
+                }
+                recRows.innerHTML = data
+                    .map(
+                        (r, i) =>
+                            `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.pts
+                            }</td><td class="muted">${r.date}</td></tr>`
+                    )
+                    .join("");
+            }
+            clearBtn.onclick = () => {
+                localStorage.removeItem(KEY);
+                renderBoard();
             };
-            document.getElementById("newPlayerBtn").onclick = () => {
-              paused = false;
-              showStartForm("");
-            };
-          }
-        });
 
-        // Records
-        const KEY = "cny_leaderboard";
-        function readBoard() {
-          try {
-            return JSON.parse(localStorage.getItem(KEY) || "[]");
-          } catch {
-            return [];
-          }
-        }
-        function saveScore(name, pts) {
-          const now = new Date().toISOString().replace("T", " ").slice(0, 16);
-          const data = readBoard();
-          data.push({ name, pts, date: now });
-          data.sort((a, b) => b.pts - a.pts);
-          localStorage.setItem(KEY, JSON.stringify(data.slice(0, 20)));
-        }
-        function renderBoard() {
-          const data = readBoard();
-          if (!data.length) {
-            recRows.innerHTML =
-              '<tr><td colspan="4" class="muted">No records yet</td></tr>';
-            return;
-          }
-          recRows.innerHTML = data
-            .map(
-              (r, i) =>
-                `<tr><td>${i + 1}</td><td>${r.name}</td><td>${
-                  r.pts
-                }</td><td class="muted">${r.date}</td></tr>`
-            )
-            .join("");
-        }
-        clearBtn.onclick = () => {
-          localStorage.removeItem(KEY);
-          renderBoard();
-        };
-
-        // Init
-        renderBoard();
-        setBasketPos();
-        updateGoalFill();
-        showStartForm(""); // welcome screen
-      })();
+            // Init
+            renderBoard();
+            setBasketPos();
+            updateGoalFill();
+            showStartForm(""); // welcome screen
+        })();
     </script>
-  </body>
+</body>
+
 </html>
