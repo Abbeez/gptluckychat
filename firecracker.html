@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>🧨 Firecracker Pop (爆竹点击)</title>
+    <!-- Add sound effects -->
+    <audio id="popSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" preload="auto"></audio>
+    <audio id="missSound" src="https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3" preload="auto"></audio>
+    <audio id="popExtra" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+    <!-- Confetti script -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --red: #b91c1c;
+            --gold: #facc15;
+            --bg: #fff7ed;
+            --ink: #2b2b2b
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial
+        }
+
+        body {
+            /* Match dashboard background (38130.jpg) with a subtle white overlay for readability */
+            background: url('/38130.jpg') center/cover no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ink)
+        }
+
+        .wrap {
+            width: 980px;
+            max-width: 96vw;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12)
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--red)
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            align-items: center
+        }
+
+        input.name {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 2px solid rgba(0, 0, 0, 0.06);
+            font-weight: 700
+        }
+
+        button.btn {
+            background: var(--red);
+            color: #fff;
+            border: 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 900;
+            cursor: pointer
+        }
+
+        button.btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed
+        }
+
+        /* Secondary button style used for Reset (keeps previous appearance) */
+        .btn.secondary {
+            background: linear-gradient(45deg, var(--red), #ef4444);
+            color: #fff;
+            border: 2px solid var(--gold);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        /* Back to Dashboard specific style (uses provided gradient + normal capitalization)
+           applied to both sidebar and modal back buttons */
+        #backSidebarBtn,
+        #backNameBtn {
+            background: linear-gradient(45deg, var(--red), #ef4444);
+            color: #fff;
+            border: 2px solid var(--gold);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            text-transform: none;
+            /* keep normal capitalization in the markup */
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .btn.secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+            background: linear-gradient(45deg, #ef4444, var(--red));
+        }
+
+        /* Ensure anchor-style buttons don't show underline */
+        a.btn {
+            text-decoration: none;
+        }
+
+        /* Remove yellow border for Reset button only (keep Back buttons styled) */
+        #resetScoresBtn {
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        #resetScoresBtn:focus {
+            outline: none;
+            box-shadow: none !important;
+        }
+
+        .main {
+            display: flex;
+            gap: 16px;
+            margin-top: 14px
+        }
+
+        .game-area {
+            flex: 1;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 4px solid rgba(185, 28, 28, 0.06)
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 560px;
+            background: linear-gradient(180deg, #fff, #fff7ed)
+        }
+
+        .hud {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 20
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-weight: 900;
+            color: var(--red);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08)
+        }
+
+        .sidebar {
+            width: 300px;
+            min-width: 240px
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05)
+        }
+
+        .leaderboard {
+            margin-top: 12px;
+            overflow-x: auto;
+        }
+
+        /* When there are many entries, enable vertical scrolling */
+        .leaderboard.scrollable {
+            max-height: 260px;
+            /* approx space for ~5 rows */
+            overflow-y: auto;
+        }
+
+        /* Custom scrollbar for modern browsers */
+        .leaderboard.scrollable::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .leaderboard.scrollable::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 6px;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .leaderboard-table th {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 2px solid var(--gold);
+            color: var(--red);
+            font-weight: 900;
+        }
+
+        .leaderboard-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .leaderboard-table tr:nth-child(even) {
+            background: rgba(250, 204, 21, 0.1);
+        }
+
+        .small {
+            font-size: 13px;
+            color: #6b7280
+        }
+
+        .center {
+            display: flex;
+            justify-content: center
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            place-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 60
+        }
+
+        .modal {
+            /* Make modal translucent so confetti remains visible */
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.65));
+            padding: 20px;
+            border-radius: 12px;
+            min-width: 320px;
+            text-align: center;
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(250, 204, 21, 0.18);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.14);
+        }
+
+        .modal h2 {
+            color: var(--red);
+            font-size: 28px;
+            margin: 0 0 20px 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .meta {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+            /* keep meta lightly translucent so confetti shows through */
+            background: rgba(255, 255, 255, 0.55);
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .meta strong {
+            color: var(--red);
+            font-size: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 15px 0;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background-color: var(--gold);
+            transition: width 0.3s ease-in-out;
+            box-shadow: 0 0 10px var(--gold);
+        }
+
+        .player-name-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid var(--red);
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        @media(max-width:900px) {
+            .main {
+                flex-direction: column
+            }
+
+            .sidebar {
+                width: 100%
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="header">
+            <div class="title">🧨 Firecracker Pop (爆竹点击)</div>
+            <div class="small">Pop 25 firecrackers within 30s. 3 lives. Fast pops build combos.</div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:12px;align-items:center;justify-content:space-between">
+            <div class="row">
+                <button id="startBtn" class="btn">Start Game</button>
+                <button id="resetScoresBtn" class="btn secondary">Reset Scores</button>
+            </div>
+            <div class="small">Leaderboard shows top 10. Scores saved to localStorage.</div>
+        </div>
+
+        <div class="main">
+            <div class="game-area">
+                <div class="hud">
+                    <div class="chip" id="scoreChip">Score: 0</div>
+                    <div class="chip" id="timerChip">Time: 30s</div>
+                    <div class="chip" id="livesChip">Lives: 3</div>
+                    <div class="chip" id="comboChip">Combo: 0</div>
+                </div>
+                <canvas id="gameCanvas" width="800" height="560" aria-label="Firecracker play area"></canvas>
+
+                <!-- Status and game info under the canvas -->
+                <div
+                    style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div class="small status-info">Status: <span id="statusText">Ready</span></div>
+                    <div class="small game-info">Target: <strong>25</strong> &nbsp;|&nbsp; Time: <strong>30s</strong>
+                        &nbsp;|&nbsp; Lives: <strong>3</strong></div>
+                </div>
+
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <strong>Leaderboard</strong><span class="small">Top 10</span>
+                    </div>
+                    <div class="leaderboard" style="margin-top:8px">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Score</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leader"></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:8px" class="small">Last updated: <span id="lastUpdated">-</span></div>
+                    <div class="progress-bar" style="margin-top:12px">
+                        <div id="progress" class="progress"></div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top:12px">
+                    <div style="display:flex;justify-content:space-between;align-items:center"><strong>Game
+                            Info</strong><span class="small">Target: 25</span></div>
+                    <div style="margin-top:8px" class="small">Each missed firecracker costs a life. A pop within 0.4s of
+                        spawn increases combo streak and shows fast feedback.</div>
+                </div>
+                <div style="margin-top:20px;text-align:center">
+                    <a id="backSidebarBtn" href="index.html" class="btn">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="modal" id="modal">
+            <h2 id="modalTitle">Result</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <div class="overlay" id="playerNameModal">
+        <div class="modal">
+            <h2>Enter Your Name</h2>
+            <input type="text" id="playerNameInput" class="player-name-input" placeholder="Enter your name"
+                maxlength="20">
+            <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+                <button id="confirmNameBtn" class="btn">Start Playing!</button>
+                <a id="backNameBtn" href="index.html" class="btn">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // Config
+            const TARGET = 25; // Increased target
+            const TIME_LIMIT = 30; // Less time
+            const LIVES = 3;
+            const SPAWN_INTERVAL = 500; // Faster spawns
+            const MIN_LIFETIME = 1200; // Shorter lifetime
+            const MAX_LIFETIME = 1800;
+            const FAST_WINDOW = 400; // Shorter window for combos
+            const BOARD_KEY = 'fc_leaderboard';
+
+            // Confetti configuration
+            const confettiConfig = {
+                particleCount: 200,
+                spread: 160,
+                origin: { y: -0.1 },
+                colors: ['#facc15', '#b91c1c', '#fef08a', '#ef4444', '#fde047'],
+                ticks: 400,
+                gravity: 1,
+                scalar: 1.5,
+                disableForReducedMotion: true,
+                angle: 90,
+                drift: 2
+            };
+
+            // Helper to ensure confetti canvas is transparent and above UI
+            function ensureConfettiCanvas() {
+                // run after a microtask to allow confetti library to append its canvas
+                setTimeout(() => {
+                    const canvases = Array.from(document.querySelectorAll('canvas'));
+                    canvases.forEach(c => {
+                        // Only style canvases not already marked
+                        if (c.dataset && c.dataset.confettiStyled) return;
+                        // Make sure this canvas covers the viewport and looks like confetti canvas
+                        try {
+                            c.style.background = 'transparent';
+                            c.style.position = 'fixed';
+                            c.style.top = '0';
+                            c.style.left = '0';
+                            c.style.width = '100%';
+                            c.style.height = '100%';
+                            c.style.zIndex = '99999';
+                            c.style.pointerEvents = 'none';
+                            c.dataset.confettiStyled = '1';
+                        } catch (e) { /* ignore styling errors */ }
+                    });
+                }, 0);
+            }
+
+            // Safe wrapper around confetti() to ensure canvas styling
+            function safeConfetti(opts = {}) {
+                try {
+                    // remember existing canvases so we only style newly added ones
+                    const before = new Set(Array.from(document.querySelectorAll('canvas')));
+                    confetti(opts);
+                    // style only new canvases that were added by the confetti lib
+                    setTimeout(() => {
+                        const canvases = Array.from(document.querySelectorAll('canvas'));
+                        canvases.forEach(c => {
+                            // never style the main game canvas
+                            if (c.id === 'gameCanvas') return;
+                            if (before.has(c) || (c.dataset && c.dataset.confettiStyled)) return;
+                            try {
+                                c.style.background = 'transparent';
+                                c.style.position = 'fixed';
+                                c.style.top = '0';
+                                c.style.left = '0';
+                                c.style.width = '100%';
+                                c.style.height = '100%';
+                                c.style.zIndex = '99999';
+                                c.style.pointerEvents = 'none';
+                                c.dataset.confettiStyled = '1';
+                            } catch (e) { /* ignore styling errors */ }
+                        });
+                    }, 0);
+                } catch (e) { console.warn('confetti failed', e); }
+            }
+
+            // Elements
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            // If the confetti logic accidentally styled the game canvas (position: fixed, full-screen),
+            // remove those inline styles so the game canvas retains its intended layout.
+            try {
+                if (canvas.dataset && canvas.dataset.confettiStyled === '1') {
+                    // remove confetti styling that was previously applied
+                    canvas.style.background = '';
+                    canvas.style.position = '';
+                    canvas.style.top = '';
+                    canvas.style.left = '';
+                    canvas.style.width = '';
+                    canvas.style.height = '';
+                    canvas.style.zIndex = '';
+                    canvas.style.pointerEvents = '';
+                    delete canvas.dataset.confettiStyled;
+                }
+                // also guard against the case where position was set without dataset flag
+                if (canvas.style && canvas.style.position === 'fixed') {
+                    canvas.style.position = '';
+                    canvas.style.top = '';
+                    canvas.style.left = '';
+                    canvas.style.width = '';
+                    canvas.style.height = '';
+                    canvas.style.zIndex = '';
+                    canvas.style.pointerEvents = '';
+                    canvas.style.background = '';
+                }
+            } catch (e) { }
+            const scoreChip = document.getElementById('scoreChip');
+            const timerChip = document.getElementById('timerChip');
+            const livesChip = document.getElementById('livesChip');
+            const comboChip = document.getElementById('comboChip');
+            const progressBar = document.getElementById('progress');
+            const popSound = document.getElementById('popSound');
+            const missSound = document.getElementById('missSound');
+            const playerNameModal = document.getElementById('playerNameModal');
+            const playerNameInput = document.getElementById('playerNameInput');
+            const confirmNameBtn = document.getElementById('confirmNameBtn');
+            const leaderEl = document.getElementById('leader');
+            const leaderboardContainer = document.querySelector('.leaderboard');
+            const lastUpdated = document.getElementById('lastUpdated');
+            const startBtn = document.getElementById('startBtn');
+            const resetScoresBtn = document.getElementById('resetScoresBtn');
+            const overlay = document.getElementById('overlay');
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            // removed modalPlayAgain reference (Play Again removed from UI)
+
+            // State
+            let playerName = '';
+            let score = 0;
+            let lives = LIVES;
+            let combo = 0;
+            let timeLeft = TIME_LIMIT;
+            let running = false;
+            let lastTick = 0;
+            let firecrackers = []; // {id,x,y,spawn,t,life,popped}
+            // Track removal timers so they can be cleared when a game ends
+            let removalTimers = [];
+            let spawnTimer = null;
+            let gameTimer = null;
+            let rafId = null;
+            let nextId = 1;
+
+            // Canvas DPR sizing
+            let DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+            function resize() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = Math.floor(rect.width * DPR);
+                canvas.height = Math.floor(rect.height * DPR);
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            // Ensure existing firecrackers are within the current canvas bounds
+            function sanitizeFirecrackers() {
+                try {
+                    const rect = canvas.getBoundingClientRect();
+                    for (let i = firecrackers.length - 1; i >= 0; i--) {
+                        const f = firecrackers[i];
+                        if (f.x < -50 || f.x > rect.width + 50 || f.y < -50 || f.y > rect.height + 50) {
+                            // remove obviously out-of-bounds items
+                            firecrackers.splice(i, 1);
+                        } else {
+                            // clamp inside visible bounds just in case
+                            f.x = Math.max(0, Math.min(f.x, rect.width));
+                            f.y = Math.max(0, Math.min(f.y, rect.height));
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            // Leaderboard functions
+            function readBoard() {
+                try { return JSON.parse(localStorage.getItem(BOARD_KEY) || '[]'); } catch (e) { return [] }
+            }
+            function saveBoard(data) {
+                localStorage.setItem(BOARD_KEY, JSON.stringify(data.slice(0, 10)));
+            }
+            function pushScore(name, score) {
+                const data = readBoard();
+                data.push({
+                    name,
+                    score,
+                    timestamp: new Date().toISOString()
+                });
+                data.sort((a, b) => b.score - a.score);
+                saveBoard(data);
+                renderBoard();
+            }
+            function renderBoard() {
+                const data = readBoard();
+                leaderEl.innerHTML = '';
+                if (!data.length) {
+                    leaderEl.innerHTML = '<tr><td colspan="4" class="small" style="text-align:center">No scores yet</td></tr>';
+                    lastUpdated.textContent = '-';
+                    return;
+                }
+                data.slice(0, 10).forEach((r, i) => {
+                    const row = document.createElement('tr');
+                    const date = new Date(r.timestamp);
+                    const formattedDate = date.toLocaleString();
+                    row.innerHTML = `
+                        <td>${i + 1}</td>
+                        <td><strong>${r.name}</strong></td>
+                        <td>${r.score}</td>
+                        <td>${formattedDate}</td>
+                    `;
+                    leaderEl.appendChild(row);
+                });
+                lastUpdated.textContent = new Date().toLocaleString();
+                // Toggle scrollbar when entries reach 5 or more
+                try {
+                    if (leaderboardContainer) {
+                        if (data.length >= 5) leaderboardContainer.classList.add('scrollable');
+                        else leaderboardContainer.classList.remove('scrollable');
+                    }
+                } catch (e) { }
+            }
+
+            function getTimeAgo(date) {
+                const seconds = Math.floor((new Date() - date) / 1000);
+                const intervals = {
+                    year: 31536000,
+                    month: 2592000,
+                    week: 604800,
+                    day: 86400,
+                    hour: 3600,
+                    minute: 60
+                };
+
+                for (let [unit, secondsInUnit] of Object.entries(intervals)) {
+                    const interval = Math.floor(seconds / secondsInUnit);
+                    if (interval >= 1) {
+                        return `${interval} ${unit}${interval === 1 ? '' : 's'} ago`;
+                    }
+                }
+                return 'Just now';
+            }
+            renderBoard();
+
+            // Helpers
+            function rand(min, max) { return Math.random() * (max - min) + min }
+            function now() { return performance.now() }
+
+            // Firecracker spawn
+            function spawnOne() {
+                const rect = canvas.getBoundingClientRect();
+                const padding = 40;
+                const minX = padding;
+                const maxX = Math.max(padding, rect.width - padding);
+                const minY = 80;
+                const maxY = Math.max(80, rect.height - 80);
+                const x = rand(minX, maxX);
+                const y = rand(minY, maxY);
+                const life = rand(MIN_LIFETIME, MAX_LIFETIME);
+                const t = now();
+                const obj = { id: nextId++, x, y, spawn: t, life, popped: false, exploded: false };
+                firecrackers.push(obj);
+            }
+
+            // Spawn loop
+            function startSpawning() {
+                spawnTimer = setInterval(spawnOne, SPAWN_INTERVAL);
+            }
+            function stopSpawning() { if (spawnTimer) { clearInterval(spawnTimer); spawnTimer = null } }
+
+            function clearRemovalTimers() {
+                try {
+                    removalTimers.forEach(id => clearTimeout(id));
+                } catch (e) { }
+                removalTimers.length = 0;
+            }
+
+            // Game start/stop
+            function showPlayerNameModal() {
+                playerNameModal.style.display = 'grid';
+                playerNameInput.focus();
+            }
+
+            function hidePlayerNameModal() {
+                playerNameModal.style.display = 'none';
+            }
+
+            function startGame() {
+                if (running) return;
+                playerName = (playerNameInput.value || '').trim();
+                if (!playerName) {
+                    showPlayerNameModal();
+                    return;
+                }
+                hidePlayerNameModal();
+                // update status text
+                try { document.getElementById('statusText').textContent = 'Playing'; } catch (e) { }
+                score = 0; lives = LIVES; combo = 0; timeLeft = TIME_LIMIT;
+                firecrackers.length = 0; nextId = 1; running = true; lastTick = now();
+                updateHUD(); renderBoard();
+                resize();
+                // sanitize after resize to ensure future spawns are inside bounds
+                sanitizeFirecrackers();
+                startSpawning();
+                gameTimer = setInterval(() => {
+                    timeLeft -= 1;
+                    updateHUD();
+                    // Update progress bar
+                    progressBar.style.width = `${(score / TARGET) * 100}%`;
+                    if (timeLeft <= 0) { endGame(false); }
+                }, 1000);
+                rafId = requestAnimationFrame(loop);
+            }
+
+            function stopGame() {
+                running = false;
+                stopSpawning();
+                clearRemovalTimers(); // cancel any pending removals so they don't operate on cleared arrays
+                if (gameTimer) { clearInterval(gameTimer); gameTimer = null }
+                if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+            }
+
+            // End game, win boolean indicates if player won
+            function endGame(win) {
+                stopGame();
+                // Immediately clear any on-canvas game objects so they don't linger while the result modal is shown
+                try {
+                    firecrackers.length = 0;
+                    fastEffects.length = 0;
+                    // clear logical canvas area (account for DPR transform)
+                    ctx.clearRect(0, 0, canvas.width / DPR, canvas.height / DPR);
+                } catch (e) { }
+                // compute final state
+                const timeRemaining = Math.max(0, timeLeft);
+                // Update leaderboard
+                pushScore(playerName, score);
+                // Show modal
+                overlay.style.display = 'grid';
+                if (win) {
+                    modalTitle.textContent = '🎉 Spectacular Victory! 🎉';
+                    try { document.getElementById('statusText').textContent = 'Victory'; } catch (e) { }
+                    // Create falling confetti effect
+                    let count = 0;
+                    const maxCount = 150;
+
+                    function shootConfetti() {
+                        if (count >= maxCount) return;
+
+                        safeConfetti({
+                            ...confettiConfig,
+                            particleCount: 8,
+                            startVelocity: 25,
+                            gravity: 1.2,
+                            origin: { y: -0.1, x: Math.random() }
+                        });
+
+                        count += 1;
+                        requestAnimationFrame(shootConfetti);
+                    }
+
+                    shootConfetti();
+                } else {
+                    modalTitle.textContent = '💥 Game Over! 💥';
+                    try { document.getElementById('statusText').textContent = 'Game Over'; } catch (e) { }
+                }
+
+                modalBody.innerHTML = `
+                    <div class="meta">
+                        <div>Player: <strong>${playerName}</strong></div>
+                        <div>Final Score: <strong>${score}</strong></div>
+                        <div>Time Remaining: <strong>${timeRemaining}s</strong></div>
+                    </div>
+                `;
+
+                // Prepare for next play: clear entered name and reset local game state
+                try { playerNameInput.value = ''; } catch (e) { }
+                // keep the result visible briefly, then hide it and show the name modal so a new player can start
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    // reset internal state so the next game starts fresh
+                    score = 0; lives = LIVES; combo = 0; timeLeft = TIME_LIMIT;
+                    firecrackers.length = 0; nextId = 1; running = false; lastTick = 0;
+                    updateHUD();
+                    try { document.getElementById('statusText').textContent = 'Ready'; } catch (e) { }
+                    showPlayerNameModal();
+                }, 3000);
+            }
+
+            // Click detection
+            function onPointerDown(e) {
+                if (!running) return;
+                const r = canvas.getBoundingClientRect();
+                const x = (e.clientX - r.left);
+                const y = (e.clientY - r.top);
+                // find topmost firecracker at point
+                for (let i = firecrackers.length - 1; i >= 0; i--) {
+                    const f = firecrackers[i];
+                    if (f.popped || f.exploded) continue;
+                    const dx = x - f.x, dy = y - f.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const radius = 22; // pop radius
+                    if (dist <= radius) {
+                        // pop it
+                        f.popped = true;
+                        const t = now();
+                        score += 1;
+                        // Play alternating pop sounds
+                        const sound = score % 2 === 0 ? popSound : popExtra;
+                        sound.currentTime = 0;
+                        sound.play();
+                        // combo detection
+                        if ((t - f.spawn) <= FAST_WINDOW) { combo += 1; showFastPop(f.x, f.y); }
+                        else combo = 0;
+                        // Update progress bar
+                        progressBar.style.width = `${(score / TARGET) * 100}%`;
+                        updateHUD();
+                        // remove after small explosion animation timer
+                        const remId = setTimeout(() => { const idx = firecrackers.indexOf(f); if (idx >= 0) firecrackers.splice(idx, 1); }, 300);
+                        removalTimers.push(remId);
+                        // check win condition
+                        if (score >= TARGET) { endGame(true); }
+                        return;
+                    }
+                }
+            }
+            canvas.addEventListener('pointerdown', onPointerDown);
+
+            // Detect expired firecrackers
+            function checkExpiration(t) {
+                for (let i = firecrackers.length - 1; i >= 0; i--) {
+                    const f = firecrackers[i];
+                    if (f.popped || f.exploded) continue;
+                    if ((t - f.spawn) > f.life) {
+                        f.exploded = true;
+                        // lose life
+                        lives -= 1;
+                        combo = 0;
+                        // Play miss sound
+                        missSound.currentTime = 0;
+                        missSound.play();
+                        updateHUD();
+                        // remove after small puff
+                        const remId = setTimeout(() => { const idx = firecrackers.indexOf(f); if (idx >= 0) firecrackers.splice(idx, 1); }, 300);
+                        removalTimers.push(remId);
+                        if (lives <= 0) { endGame(false); return; }
+                    }
+                }
+            }
+
+            // HUD update
+            function updateHUD() { scoreChip.textContent = 'Score: ' + score; timerChip.textContent = 'Time: ' + Math.max(0, timeLeft) + 's'; livesChip.textContent = 'Lives: ' + lives; comboChip.textContent = 'Combo: ' + combo; }
+
+            // Visual fast pop indicator
+            let fastEffects = [];
+            function showFastPop(x, y) {
+                fastEffects.push({ x, y, t: now(), alpha: 1 });
+            }
+
+            // Draw
+            function drawBackground() {
+                // subtle paper texture / gradient already via CSS
+                ctx.clearRect(0, 0, canvas.width / DPR, canvas.height / DPR);
+            }
+
+            function drawFirecracker(f, t) {
+                const age = t - f.spawn;
+                const lifePct = Math.max(0, Math.min(1, age / f.life));
+                const x = f.x, y = f.y;
+                // fuse flicker
+                ctx.save();
+                // body
+                ctx.beginPath(); ctx.fillStyle = mix('#f59e0b', '#ef4444', lifePct); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.fill();
+                // sparkle on top
+                ctx.beginPath(); ctx.fillStyle = '#fff3cc'; ctx.arc(x, y - 10, 6, 0, Math.PI * 2); ctx.fill();
+                // fuse
+                ctx.beginPath(); ctx.strokeStyle = '#6b7280'; ctx.lineWidth = 2; ctx.moveTo(x, y - 20); ctx.lineTo(x + 8, y - 32); ctx.stroke();
+                // timer ring
+                ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 3; ctx.arc(x, y, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - lifePct)); ctx.stroke();
+                ctx.restore();
+            }
+
+            function mix(a, b, t) {
+                // simple hex mix
+                const pa = hexToRgb(a), pb = hexToRgb(b);
+                const r = Math.round(pa.r + (pb.r - pa.r) * t);
+                const g = Math.round(pa.g + (pb.g - pa.g) * t);
+                const bl = Math.round(pa.b + (pb.b - pa.b) * t);
+                return `rgb(${r},${g},${bl})`;
+            }
+            function hexToRgb(h) {
+                h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join('');
+                return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+            }
+
+            function drawFastEffects(t) {
+                for (let i = fastEffects.length - 1; i >= 0; i--) {
+                    const e = fastEffects[i];
+                    const dt = (t - e.t) / 1000;
+                    const alpha = Math.max(0, 1 - dt * 2);
+                    ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = 'rgba(255,230,180,0.95)'; ctx.beginPath(); ctx.arc(e.x, e.y - dt * 30, 18, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+                    if (alpha <= 0) fastEffects.splice(i, 1);
+                }
+            }
+
+            // Main loop
+            function loop(nowTs) {
+                if (!running) return;
+                // ensure any stray/out-of-bounds items are removed each frame
+                try { sanitizeFirecrackers(); } catch (e) { }
+                checkExpiration(now());
+                drawBackground();
+                const t = now();
+                // draw firecrackers
+                for (const f of firecrackers) { if (!f.popped && !f.exploded) drawFirecracker(f, t); }
+                drawFastEffects(t);
+                rafId = requestAnimationFrame(loop);
+            }
+
+            // Controls
+            startBtn.addEventListener('click', showPlayerNameModal);
+
+            resetScoresBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to reset all scores? This cannot be undone.')) {
+                    localStorage.removeItem(BOARD_KEY);
+                    renderBoard();
+                }
+            });
+
+            confirmNameBtn.addEventListener('click', startGame);
+            playerNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') startGame();
+            });            // Initialize board and debug
+            renderBoard();
+
+            // Accessibility: keyboard space triggers flap-like click? we interpret Enter to start
+            window.addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!running) startBtn.click(); } });
+
+        })();
+    </script>
+</body>
+
+</html>

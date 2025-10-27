@@ -5,6 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chinese Tic Tac Toe</title>
+    <!-- Game sound effects -->
+    <audio id="playerMoveSound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"
+        preload="auto"></audio>
+    <audio id="computerMoveSound" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"
+        preload="auto"></audio>
+    <audio id="winSound" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
+    <audio id="drawSound" src="https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3" preload="auto"></audio>
+    <!-- Tournament victory sound -->
+    <audio id="tournamentSound" src="https://assets.mixkit.co/active_storage/sfx/387/387-preview.mp3"
+        preload="auto"></audio>
     <style>
         :root {
             --red: #b91c1c;
@@ -21,6 +31,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             color: var(--deep);
         }
 
@@ -29,9 +40,8 @@
             padding: 2rem;
             border-radius: 15px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-            margin: 2rem auto;
+            margin: 0 auto;
             max-width: 960px;
-            margin-top: 50px;
         }
 
         button {
@@ -196,10 +206,62 @@
             margin: 0.5rem;
         }
 
+        /* Player name modal (replaces prompt) */
+        .name-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            display: grid;
+            place-items: center;
+        }
+
+        .name-modal {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95));
+            padding: 24px;
+            border-radius: 12px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
+        }
+
+        .name-modal h2 {
+            color: var(--red);
+            margin: 0 0 16px 0;
+            font-size: 1.5rem;
+        }
+
+        .player-name-input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid var(--red);
+            border-radius: 8px;
+            font-size: 16px
+        }
+
+        /* Back buttons (match other games) */
+        .back-btn-gradient {
+            background: linear-gradient(45deg, var(--red), #ef4444);
+            color: #fff;
+            border: 2px solid var(--gold);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            text-transform: none;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+            text-decoration: none;
+        }
+
         @media (max-width: 400px) {
             .game-board {
                 grid-template-columns: repeat(3, 72px);
-                gap: 6px
+                gap: 6px;
             }
 
             .cell {
@@ -210,6 +272,37 @@
 
             .scoreboard {
                 width: 140px
+            }
+        }
+
+        /* Confetti styles */
+        .confetti-container {
+            position: fixed;
+            pointer-events: none;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            overflow: visible;
+            z-index: 2000;
+        }
+
+        .confetti {
+            position: absolute;
+            top: -10vh;
+            width: 10px;
+            height: 14px;
+            border-radius: 2px;
+            transform-origin: center;
+            animation-name: confetti-fall;
+            animation-timing-function: cubic-bezier(.2, .6, .2, 1);
+            will-change: transform, opacity;
+        }
+
+        @keyframes confetti-fall {
+            100% {
+                transform: translateY(115vh) rotate(720deg);
+                opacity: 1;
             }
         }
     </style>
@@ -243,8 +336,7 @@
                     <div class="game-board" id="board"></div>
                 </div>
                 <div style="margin-top:8px;">
-                    <button onclick="window.location.href='index.html'" class="back-to-dashboard">Back to
-                        Dashboard</button>
+                    <a href="index.html" class="back-btn-gradient">Back to Dashboard</a>
                 </div>
             </div>
         </div>
@@ -266,7 +358,54 @@
         </div>
     </div>
 
+    <div class="name-modal-overlay" id="playerNameModal">
+        <div class="name-modal">
+            <h2>Enter Your Name</h2>
+            <input id="playerNameInput" class="player-name-input" maxlength="20" placeholder="Enter your name">
+            <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+                <button id="confirmNameBtn" class="btn">Start Playing!</button>
+                <a id="backNameBtn" href="index.html" class="back-btn-gradient">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // --- SOUND INITIALIZATION ---
+        const playerMoveSound = document.getElementById('playerMoveSound');
+        const computerMoveSound = document.getElementById('computerMoveSound');
+        const winSound = document.getElementById('winSound');
+        const drawSound = document.getElementById('drawSound');
+        const tournamentSound = document.getElementById('tournamentSound');
+
+        // Create AudioContext for consistent playback unlocking
+        let audioCtx;
+        function unlockAudio() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.warn("AudioContext not supported.");
+                    return;
+                }
+            }
+            if (audioCtx.state === "suspended") {
+                audioCtx.resume().catch(() => { });
+            }
+            // Force all sounds to play once silently to unlock
+            [playerMoveSound, computerMoveSound, winSound, drawSound, tournamentSound].forEach(sound => {
+                sound.volume = 0;
+                sound.play().then(() => {
+                    sound.pause();
+                    sound.currentTime = 0;
+                    sound.volume = 1.0;
+                }).catch(() => { });
+            });
+        }
+
+        // Unlock on any user gesture
+        window.addEventListener("click", unlockAudio, { once: true });
+        window.addEventListener("keydown", unlockAudio, { once: true });
+
         let currentPlayer = '✕';
         let board = ['', '', '', '', '', '', '', '', ''];
         let gameActive = false;
@@ -274,30 +413,103 @@
         let matches = { player1: 0, player2: 0 };
         let player1Name = 'Player 1';
         let player2Name = 'Player 2';
+        let playerVsComputer = true;
         const MATCHES_TO_WIN = 3;
 
-        // Get player names immediately when page loads
-        window.onload = async function () {
-            const name = prompt('Enter your name:');
-            // If user clicks cancel, return to dashboard
-            if (name === null) {
-                window.location.href = 'index.html';
-                return;
-            }
+        function getRandomStartingPlayer() {
+            return Math.random() < 0.5 ? '✕' : '○';
+        }
 
-            // If user enters empty name or only spaces, ask again
-            player1Name = name.trim();
-            if (!player1Name) {
-                window.location.href = 'index.html';
-                return;
+        function makeComputerMove() {
+            if (!gameActive || currentPlayer !== '○') return;
+            const computerMove = getComputerMove();
+            if (computerMove !== -1) {
+                board[computerMove] = '○';
+                renderBoard();
+                computerMoveSound.play();
+                if (checkWin()) {
+                    scores.player2++;
+                    if (scores.player2 > scores.player1) {
+                        matches.player2++;
+                        if (matches.player2 >= MATCHES_TO_WIN) {
+                            showResult(`Computer wins the tournament! Score: ${matches.player2}-${matches.player1}`, 'Tournament Victory!', true);
+                            gameActive = false;
+                            return;
+                        }
+                    }
+                    updateScores();
+                    showResult('Computer wins this round!', 'Round Victory!');
+                    gameActive = false;
+                    setTimeout(() => closeModal(), 1500);
+                } else if (board.every(cell => cell !== '')) {
+                    drawSound.play();
+                    showResult("It's a draw!", 'Draw Game');
+                    gameActive = false;
+                    setTimeout(() => closeModal(true), 1500);
+                } else {
+                    currentPlayer = '✕';
+                    updateStatus();
+                }
             }
+        }
 
-            // Set computer as player 2
+        function launchConfetti() {
+            try {
+                const container = document.createElement('div');
+                container.className = 'confetti-container';
+                document.body.appendChild(container);
+                const colors = ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#a78bfa', '#fb7185', '#f97316'];
+                const count = 80;
+                for (let i = 0; i < count; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'confetti';
+                    el.style.left = Math.random() * 100 + 'vw';
+                    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    el.style.opacity = (0.6 + Math.random() * 0.6).toFixed(2);
+                    const w = 6 + Math.random() * 10;
+                    el.style.width = w + 'px';
+                    el.style.height = (w * 1.4) + 'px';
+                    const delay = Math.random() * 0.6;
+                    const duration = 2.4 + Math.random() * 1.6;
+                    el.style.animationDelay = delay + 's';
+                    el.style.animationDuration = duration + 's';
+                    container.appendChild(el);
+                }
+                setTimeout(() => container.remove(), 5200);
+            } catch (e) { console.error(e); }
+        }
+
+        let pendingNewTournament = false;
+        const playerNameModal = document.getElementById('playerNameModal');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const confirmNameBtn = document.getElementById('confirmNameBtn');
+
+        confirmNameBtn.addEventListener('click', () => {
+            const name = (playerNameInput.value || '').trim();
+            if (!name) return;
+            player1Name = name;
             player2Name = 'Computer';
-
-            // Start the game
+            if (pendingNewTournament) {
+                scores.player1 = 0; scores.player2 = 0; matches.player1 = 0; matches.player2 = 0; updateScores();
+            }
+            hidePlayerNameModal();
+            playerNameInput.value = '';
+            pendingNewTournament = false;
             startGame();
-        };
+        });
+
+        playerNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') confirmNameBtn.click(); });
+
+        window.addEventListener('load', () => {
+            player1Name = '';
+            showPlayerNameModal();
+        });
+
+        function showPlayerNameModal() {
+            playerNameModal.style.display = 'grid';
+            playerNameInput.focus();
+        }
+        function hidePlayerNameModal() { playerNameModal.style.display = 'none'; }
 
         function startGame() {
             document.getElementById('p1name').textContent = player1Name;
@@ -307,15 +519,14 @@
             renderBoard();
             updateStatus();
             updateScores();
+            playerMoveSound.play();
         }
 
         function renderBoard() {
             const boardElement = document.getElementById('board');
             boardElement.innerHTML = '';
-            // Set board class according to current player for hover styles
             boardElement.classList.toggle('p1-turn', currentPlayer === '✕');
             boardElement.classList.toggle('p2-turn', currentPlayer === '○');
-
             board.forEach((cell, index) => {
                 const cellElement = document.createElement('div');
                 cellElement.className = 'cell';
@@ -326,37 +537,27 @@
         }
 
         function getComputerMove() {
-            // First try to win
-            const move = findWinningMove('○');
-            if (move !== -1) return move;
-
-            // Then try to block player from winning
+            const possibleMoves = [];
+            const winMove = findWinningMove('○');
+            if (winMove !== -1) possibleMoves.push({ move: winMove, weight: 5 });
             const blockMove = findWinningMove('✕');
-            if (blockMove !== -1) return blockMove;
-
-            // Try to take center
-            if (board[4] === '') return 4;
-
-            // Try to take corners
+            if (blockMove !== -1) possibleMoves.push({ move: blockMove, weight: 4 });
+            if (board[4] === '') possibleMoves.push({ move: 4, weight: 3 });
             const corners = [0, 2, 6, 8];
-            const emptyCorners = corners.filter(i => board[i] === '');
-            if (emptyCorners.length > 0) {
-                return emptyCorners[Math.floor(Math.random() * emptyCorners.length)];
-            }
-
-            // Take any available space
-            const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(i => i !== null);
-            return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            corners.forEach(corner => { if (board[corner] === '') possibleMoves.push({ move: corner, weight: 2 }); });
+            board.forEach((cell, index) => {
+                if (cell === '' && !possibleMoves.some(p => p.move === index)) possibleMoves.push({ move: index, weight: 1 });
+            });
+            if (possibleMoves.length === 0) return -1;
+            const weightedMoves = possibleMoves.flatMap(p => Array(p.weight).fill(p.move));
+            return weightedMoves[Math.floor(Math.random() * weightedMoves.length)];
         }
 
         function findWinningMove(player) {
             for (let i = 0; i < 9; i++) {
                 if (board[i] === '') {
                     board[i] = player;
-                    if (checkWin()) {
-                        board[i] = '';
-                        return i;
-                    }
+                    if (checkWin()) { board[i] = ''; return i; }
                     board[i] = '';
                 }
             }
@@ -365,111 +566,50 @@
 
         function handleCellClick(index) {
             if (!gameActive || board[index] !== '' || currentPlayer !== '✕') return;
-
-            // Player's move
             board[index] = currentPlayer;
             renderBoard();
+            playerMoveSound.play();
 
             if (checkWin()) {
-                const winner = currentPlayer === '✕' ? player1Name : player2Name;
-                if (currentPlayer === '✕') {
-                    scores.player1++;
-                    if (scores.player1 > scores.player2) {
-                        matches.player1++;
-                        if (matches.player1 >= MATCHES_TO_WIN) {
-                            showResult(`${player1Name} wins the tournament! Score: ${matches.player1}-${matches.player2}`, 'Tournament Victory!', true);
-                            gameActive = false;
-                            return;
-                        }
-                    }
-                } else {
-                    scores.player2++;
-                    if (scores.player2 > scores.player1) {
-                        matches.player2++;
-                        if (matches.player2 >= MATCHES_TO_WIN) {
-                            showResult(`${player2Name} wins the tournament! Score: ${matches.player2}-${matches.player1}`, 'Tournament Victory!', true);
-                            gameActive = false;
-                            return;
-                        }
+                scores.player1++;
+                if (scores.player1 > scores.player2) {
+                    matches.player1++;
+                    if (matches.player1 >= MATCHES_TO_WIN) {
+                        showResult(`${player1Name} wins the tournament! Score: ${matches.player1}-${matches.player2}`, 'Tournament Victory!', true);
+                        gameActive = false;
+                        return;
                     }
                 }
                 updateScores();
-                showResult(winner + ' wins this round!', 'Round Victory!');
+                showResult(player1Name + ' wins this round!', 'Round Victory!');
                 gameActive = false;
-                setTimeout(() => {
-                    closeModal(true); // Auto-start next round
-                }, 1500);
+                setTimeout(() => closeModal(), 1500);
             } else if (board.every(cell => cell !== '')) {
+                drawSound.play();
                 showResult("It's a draw!", 'Draw Game');
                 gameActive = false;
-                setTimeout(() => {
-                    closeModal(true); // Auto-reset on draw after showing result
-                }, 1500);
-            } else if (board.every(cell => cell !== '')) {
-                showResult("It's a draw!", 'Draw Game');
-                gameActive = false;
-                setTimeout(() => {
-                    closeModal(true);
-                }, 1500);
+                setTimeout(() => closeModal(), 1500);
             } else {
-                // Computer's turn
                 currentPlayer = '○';
                 updateStatus();
-                // Add a small delay before computer moves
-                setTimeout(() => {
-                    if (gameActive) {
-                        const computerMove = getComputerMove();
-                        board[computerMove] = '○';
-                        renderBoard();
-
-                        if (checkWin()) {
-                            scores.player2++;
-                            if (scores.player2 > scores.player1) {
-                                matches.player2++;
-                                if (matches.player2 >= MATCHES_TO_WIN) {
-                                    showResult(`Computer wins the tournament! Score: ${matches.player2}-${matches.player1}`, 'Tournament Victory!', true);
-                                    gameActive = false;
-                                    return;
-                                }
-                            }
-                            updateScores();
-                            showResult('Computer wins this round!', 'Round Victory!');
-                            gameActive = false;
-                            setTimeout(() => {
-                                closeModal(true);
-                            }, 1500);
-                        } else if (board.every(cell => cell !== '')) {
-                            showResult("It's a draw!", 'Draw Game');
-                            gameActive = false;
-                            setTimeout(() => {
-                                closeModal(true);
-                            }, 1500);
-                        } else {
-                            currentPlayer = '✕';
-                            updateStatus();
-                        }
-                    }
-                }, 800);
+                setTimeout(makeComputerMove, 500);
             }
         }
 
         function checkWin() {
             const winPatterns = [
-                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-                [0, 4, 8], [2, 4, 6] // Diagonals
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
             ];
-
-            return winPatterns.some(pattern => {
-                const [a, b, c] = pattern;
-                return board[a] && board[a] === board[b] && board[a] === board[c];
-            });
+            const hasWon = winPatterns.some(([a, b, c]) => board[a] && board[a] === board[b] && board[a] === board[c]);
+            if (hasWon) winSound.play();
+            return hasWon;
         }
 
         function updateStatus() {
             const currentPlayerName = currentPlayer === '✕' ? player1Name : player2Name;
             document.getElementById('status').textContent = `${currentPlayerName}'s turn`;
-            // update hover classes on board and scoreboard highlight
             const boardElement = document.getElementById('board');
             boardElement.classList.toggle('p1-turn', currentPlayer === '✕');
             boardElement.classList.toggle('p2-turn', currentPlayer === '○');
@@ -492,73 +632,57 @@
 
             modalTitle.textContent = title;
             modalMessage.textContent = message;
-
-            // Show buttons only when tournament ends
             tournamentButtons.style.display = isTournamentEnd ? 'block' : 'none';
-
             modal.style.display = 'flex';
 
-            // Auto-close for non-tournament-end results
-            if (!isTournamentEnd) {
-                setTimeout(() => {
-                    closeModal();
-                }, 1500);
+            if (isTournamentEnd) {
+                launchConfetti();
+                try {
+                    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+                    tournamentSound.currentTime = 0;
+                    tournamentSound.play().catch(err => {
+                        console.warn("Tournament sound blocked:", err);
+                        document.body.addEventListener("click", () => tournamentSound.play(), { once: true });
+                    });
+                } catch (e) { console.error(e); }
             }
-        } function closeModal() {
+
+            if (!isTournamentEnd) setTimeout(() => closeModal(), 1500);
+        }
+
+        function closeModal() {
             const modal = document.getElementById('resultModal');
             modal.style.display = 'none';
+            if (matches.player1 >= MATCHES_TO_WIN || matches.player2 >= MATCHES_TO_WIN) showPlayerNameModal();
             resetGame();
         }
 
         function startNewTournament() {
-            // Ask for new player name
-            const newName = prompt('Enter your name:');
+            pendingNewTournament = true;
+            showPlayerNameModal();
+            document.getElementById('resultModal').style.display = 'none';
+        }
 
-            // If user clicks cancel, return to dashboard
-            if (newName === null) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            // If user enters empty name or only spaces, return to dashboard
-            if (!newName.trim()) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            player1Name = newName.trim();
-            scores.player1 = 0;
-            scores.player2 = 0;
-            matches.player1 = 0;
-            matches.player2 = 0;
-
-            // Close modal and start fresh
-            const modal = document.getElementById('resultModal');
-            modal.style.display = 'none';
-            startGame();
-        } function resetGame() {
+        function resetGame() {
             board = ['', '', '', '', '', '', '', '', ''];
-            currentPlayer = '✕';
+            currentPlayer = getRandomStartingPlayer();
             gameActive = true;
             renderBoard();
             updateStatus();
+            if (playerVsComputer && currentPlayer === '○') setTimeout(makeComputerMove, 500);
         }
 
         function resetScores() {
-            scores.player1 = 0;
-            scores.player2 = 0;
-            matches.player1 = 0;
-            matches.player2 = 0;
+            scores.player1 = 0; scores.player2 = 0; matches.player1 = 0; matches.player2 = 0;
             updateScores();
             showResult('Tournament progress has been reset!', 'Tournament Reset', false);
-            setTimeout(() => {
-                closeModal();
-            }, 1500);
+            setTimeout(() => closeModal(), 1500);
         }
 
-        // Initialize the game board
         renderBoard();
     </script>
+
+
 </body>
 
 </html>

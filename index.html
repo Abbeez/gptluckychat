@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chinese Games Dashboard</title>
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         :root {
             --red: #b91c1c;
             --gold: #facc15;
@@ -13,10 +19,10 @@
         }
 
         body {
-            margin: 0;
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
             background: url('/38130.jpg');
             background-size: cover;
+            background-repeat: no-repeat;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -30,10 +36,10 @@
             padding: 2rem;
             border-radius: 15px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-            margin: 0.5rem auto;
+            margin: auto;
             text-align: center;
-            max-width: 1110px;
-            width: 90%;
+            max-width: auto;
+            width: 70%;
         }
 
         h1 {
@@ -46,17 +52,18 @@
         .games-container {
             display: grid;
             /* Force 3 columns on desktop so top row shows three games and bottom row keeps same spacing */
-            grid-template-columns: repeat(3, minmax(220px, 1fr));
-            grid-auto-rows: 1fr;
-            /* equal height rows */
-            gap: 1.5rem;
-            margin-top: 2rem;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: minmax(300px, auto);
+            /* equal height rows with minimum height */
+            gap: 1rem;
+            margin-top: 1rem;
+            justify-content: center;
         }
 
         .game-card {
             background: white;
             border-radius: 10px;
-            padding: 1.5rem;
+            padding: 2rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
             min-height: 200px;
@@ -143,6 +150,9 @@
 </head>
 
 <body>
+    <div class="navbar">
+        <img src="img/Logo1.png" alt="Logo" style="height: 100px; margin: 70px;">
+    </div>
     <div class="dashboard">
         <h1>Chinese Games Dashboard</h1>
 
@@ -169,6 +179,13 @@
                 <p>Guide a dragon through temple gates in this side-scrolling flappy-style challenge. Tap or press
                     space to flap and avoid collisions. High scores are saved locally.</p>
                 <a href="flappydragon.html" class="play-button">Play Now</a>
+            </div>
+
+            <div class="game-card">
+                <div class="game-thumb placeholder">🧨</div>
+                <h2>Firecracker Pop</h2>
+                <p>Fast-paced click/reaction game — pop 20 firecrackers within 35s. Misses cost lives.</p>
+                <a href="firecracker.html" class="play-button">Play Now</a>
             </div>
         </div>
     </div>
