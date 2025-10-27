@@ -93,6 +93,26 @@
       font-size: calc(16px * var(--scale));
     }
 
+    .back-to-dashboard {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+      background-color: var(--red);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: background-color 0.3s;
+    }
+
+    .back-to-dashboard:hover {
+      background-color: var(--deep);
+    }
+
     .row {
       display: flex;
       gap: 10px;
@@ -405,6 +425,7 @@
 </head>
 
 <body>
+  <a href="index.html" class="back-to-dashboard">Back to Dashboard</a>
   <button class="side-toggle" id="sideToggle" style="display: none">
     Records
   </button>
@@ -701,65 +722,76 @@
       function confetti() {
         const { width, height } = stageRect();
 
-        // ENHANCEMENT: Improved celebration visual effects
-        // Create a dedicated container for confetti with proper layering
+        // Create container
         const container = document.createElement("div");
         container.style.position = "absolute";
         container.style.inset = "0";
-        container.style.pointerEvents = "none"; // Prevents interference with game controls
-        container.style.zIndex = "1000";        // Ensures visibility above game elements
+        container.style.pointerEvents = "none";
+        container.style.zIndex = "1000";
         stage.appendChild(container);
 
-        // ENHANCEMENT: Rich celebration particle system
-        // - Increased particle count for more festive effect
-        // - Variable sizes and shapes for visual diversity
-        // - Dynamic opacity for depth perception
-        for (let i = 0; i < 150; i++) {
-          const c = document.createElement("div");
-          c.style.position = "absolute";
-          // Create varied particle sizes for more dynamic visual effect
-          const size = rand(8, 14);
-          c.style.width = size + "px";
-          c.style.height = size * 1.4 + "px"; // Rectangular shape for better rotation visuals
-          c.style.opacity = rand(0.8, 1);     // Random opacity for depth effect
-          c.style.left = rand(0, width) + "px";
-          c.style.top = "-20px";
-          // Enhanced color palette with brightness
-          c.style.background = [ // Brighter colors
-            "#ff4444", // Brighter red
-            "#ff9e0b", // Brighter orange
-            "#ffcc15", // Brighter yellow
-            "#22ff5e", // Brighter green
-            "#3b82ff", // Brighter blue
-            "#a855ff", // Brighter purple
-          ][Math.floor(rand(0, 6))];
-          // Add shadow for depth
-          c.style.boxShadow = "0 0 4px rgba(0,0,0,0.1)";
-          container.appendChild(c);
+        // Side-by-side pop bursts: left and right
+        const bursts = [
+          { x: Math.round(width * 0.35), y: Math.round(height * 0.45) },
+          { x: Math.round(width * 0.65), y: Math.round(height * 0.45) },
+        ];
 
-          // Enhanced movement physics
-          const vy = rand(120, 220), // Slightly slower fall
-            vx = rand(-60, 60), // More horizontal movement
-            rot = rand(-360, 360), // Full rotation possible
-            start = performance.now();
+        const COLORS = ["#ff4444", "#ff9e0b", "#ffcc15", "#22ff5e", "#3b82ff", "#a855ff"];
+        const GRAVITY = 300; // px/s^2
+        const PARTICLES_PER_BURST = 90; // total 180
+        const LIFESPAN = 1.4; // seconds
 
-          const tick = (t) => {
-            const dt = (t - start) / 1000;
-            const progress = Math.min(dt * 1.5, 1); // Fade out factor
-            c.style.top = (vy * dt - 20) + "px";
-            c.style.left = (parseFloat(c.style.left) + (vx * dt) / 20) + "px";
-            c.style.transform = `rotate(${rot * dt}deg) scale(${1 - progress * 0.3})`; // Add scale effect
-            c.style.opacity = Math.max(0, 1 - progress); // Fade out gradually
+        // Create all particles for both bursts
+        for (const burst of bursts) {
+          for (let i = 0; i < PARTICLES_PER_BURST; i++) {
+            const p = document.createElement("div");
+            p.style.position = "absolute";
+            const size = rand(6, 14);
+            p.style.width = size + "px";
+            p.style.height = Math.round(size * (0.9 + Math.random() * 0.6)) + "px";
+            p.style.left = burst.x + "px";
+            p.style.top = burst.y + "px";
+            p.style.background = COLORS[Math.floor(rand(0, COLORS.length))];
+            p.style.borderRadius = Math.random() > 0.6 ? "2px" : "50%";
+            p.style.boxShadow = "0 0 4px rgba(0,0,0,0.12)";
+            p.style.opacity = "1";
+            p.style.transformOrigin = "center";
+            container.appendChild(p);
 
-            if (parseFloat(c.style.top) < height + 50 && progress < 1) {
+            // Initial velocity: pick an angle that shoots outward and slightly upward
+            // For left burst, aim mostly right; for right burst, aim mostly left
+            const isLeftBurst = burst.x < width / 2;
+            const baseAngle = isLeftBurst ? 0 : Math.PI; // 0 = right, PI = left
+            // Spread angle +- 50 degrees
+            const angle = baseAngle + (rand(-0.87, 0.87));
+            const speed = rand(180, 340); // px/s
+            const vx = Math.cos(angle) * speed;
+            const vy0 = Math.sin(angle) * speed * -0.6; // give upward bias
+            const rot = rand(-720, 720); // degrees per second
+            const start = performance.now();
+
+            const tick = (now) => {
+              const dt = (now - start) / 1000; // seconds
+              if (dt > LIFESPAN) {
+                p.remove();
+                if (!container.children.length) container.remove();
+                return;
+              }
+
+              // Physics: simple projectile with gravity
+              const x = burst.x + vx * dt;
+              const y = burst.y + (vy0 * dt) + (0.5 * GRAVITY * dt * dt);
+              p.style.left = x + "px";
+              p.style.top = y + "px";
+              p.style.transform = `rotate(${rot * dt}deg) scale(${1 - dt / (LIFESPAN * 1.2)})`;
+              p.style.opacity = Math.max(0, 1 - dt / LIFESPAN);
+
               requestAnimationFrame(tick);
-            } else {
-              c.remove();
-              // Remove container when last confetti is gone
-              if (!container.children.length) container.remove();
-            }
-          };
-          requestAnimationFrame(tick);
+            };
+
+            // Stagger a tiny bit for a nice pop effect
+            setTimeout(() => requestAnimationFrame(tick), Math.floor(rand(0, 140)));
+          }
         }
       }
 
