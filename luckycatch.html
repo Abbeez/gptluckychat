@@ -486,7 +486,7 @@
   <script>
     (() => {
       // Config
-      const TARGET_SCORE = 1000;
+      const TARGET_SCORE = 1500;
       const ROUND_TIME = 30;
 
       // Elements
@@ -571,8 +571,8 @@
       function startMusic() {
         ensureAudio();
         stopMusic();
-        const bpm = 112; // slightly calmer again
-        const stepMs = (60 / bpm) * 1000;
+        const bpm = 190; // slightly calmer again
+        const stepMs = (10 / bpm) * 1000;
         const scale = [261.63, 293.66, 329.63, 392.0, 523.25]; // pentatonic
         let i = 0;
         musicTimer = setInterval(() => {
@@ -637,24 +637,24 @@
           emoji: "🧨",
           w: 50,
           h: 72,
-          penalty: -22,
-          knock: 0.8,
+          penalty: -100,
+          knock: 2.10,
         },
         {
           type: "bomb",
           emoji: "💣",
           w: 54,
           h: 72,
-          penalty: -35,
-          knock: 1.05,
+          penalty: -200,
+          knock: 3.05,
         },
         {
           type: "chili",
           emoji: "🌶️",
           w: 50,
           h: 64,
-          penalty: -15,
-          knock: 0.6,
+          penalty: -130,
+          knock: 2.5,
         },
       ];
 
@@ -697,9 +697,9 @@
           el,
           x,
           y: -70,
-          vy: rand(80, 120),      // Initial velocity: Slower start for better player reaction
-          maxVy: rand(180, 240),   // Terminal velocity: Caps maximum speed for playability
-          acceleration: rand(50, 80), // Acceleration rate: Smooth speed increase
+          vy: rand(200, 80),      // Initial velocity: Slower start for better player reaction
+          maxVy: rand(800, 300),   // Terminal velocity: Caps maximum speed for playability
+          acceleration: rand(900, 700), // Acceleration rate: Smooth speed increase
           rx: rand(-26, 26),
           good: isGood,
           data,
@@ -764,7 +764,7 @@
             const baseAngle = isLeftBurst ? 0 : Math.PI; // 0 = right, PI = left
             // Spread angle +- 50 degrees
             const angle = baseAngle + (rand(-0.87, 0.87));
-            const speed = rand(180, 340); // px/s
+            const speed = rand(200, 600); // px/s
             const vx = Math.cos(angle) * speed;
             const vy0 = Math.sin(angle) * speed * -0.6; // give upward bias
             const rot = rand(-720, 720); // degrees per second
